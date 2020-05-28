@@ -51,7 +51,10 @@ taskq_t *zvol_taskq;
 
 typedef struct zv_request {
 	zvol_state_t	*zv;
-	void *zv_iokit;
+
+	void (*zv_func)(void *);
+	void *zv_arg;
+
 	taskq_ent_t	ent;
 } zv_request_t;
 
@@ -61,6 +64,31 @@ dmu_read_iokit_dnode(dnode_t *dn, uint64_t *offset,
 int
 dmu_write_iokit_dnode(dnode_t *dn, uint64_t *offset, uint64_t position,
     uint64_t *size, struct iomem *iomem, dmu_tx_t *tx);
+
+
+static void
+zvol_os_spawn_cb(void *param)
+{
+	zv_request_t *zvr = (zv_request_t *)param;
+
+	zvr->zv_func(zvr->zv_arg);
+
+	kmem_free(zvr, sizeof (zv_request_t));
+}
+
+static void
+zvol_os_spawn(void (*func)(void *), void *arg)
+{
+	zv_request_t *zvr;
+	zvr = kmem_alloc(sizeof (zv_request_t), KM_SLEEP);
+	zvr->zv_arg = arg;
+	zvr->zv_func = func;
+
+	taskq_init_ent(&zvr->ent);
+
+	taskq_dispatch_ent(zvol_taskq,
+		zvol_os_spawn_cb, zvr, 0, &zvr->ent);
+}
 
 /*
  * Given a path, return TRUE if path is a ZVOL.
@@ -91,29 +119,11 @@ zvol_os_is_zvol(const char *device)
 static void
 zvol_os_register_device_cb(void *param)
 {
-	zv_request_t *zvr = (zv_request_t *)param;
+	zvol_state_t *zv = (zvol_state_t *)param;
 
-	rw_enter(&zvr->zv->zv_suspend_lock, RW_WRITER);
-	zvolRegisterDevice(zvr->zv);
-	rw_exit(&zvr->zv->zv_suspend_lock);
-
-	kmem_free(zvr, sizeof (zv_request_t));
-	printf("%s complete\n", __func__);
-}
-
-static void
-zvol_os_register_device(zvol_state_t *zv)
-{
-	zv_request_t *zvr;
-
-	printf("%s\n", __func__);
-
-	zvr = kmem_alloc(sizeof (zv_request_t), KM_SLEEP);
-	zvr->zv = zv;
-	taskq_init_ent(&zvr->ent);
-
-	taskq_dispatch_ent(zvol_taskq,
-		zvol_os_register_device_cb, zvr, 0, &zvr->ent);
+	rw_enter(&zv->zv_suspend_lock, RW_WRITER);
+	zvolRegisterDevice(zv);
+	rw_exit(&zv->zv_suspend_lock);
 }
 
 /* Helper function for C++ */
@@ -385,16 +395,12 @@ zvol_os_update_volsize(zvol_state_t *zv, uint64_t volsize)
 static void
 zvol_os_clear_private_cb(void *param)
 {
-	zv_request_t *zvr = (zv_request_t *)param;
-
-	zvolRemoveDeviceTerminate(zvr->zv_iokit);
-	kmem_free(zvr, sizeof (zv_request_t));
+	zvolRemoveDeviceTerminate(param);
 }
 
 static void
 zvol_os_clear_private(zvol_state_t *zv)
 {
-	zv_request_t *zvr;
 	void *term;
 
 	printf("%s\n", __func__);
@@ -405,13 +411,9 @@ zvol_os_clear_private(zvol_state_t *zv)
 
 	zv->zv_zso->zvo_iokitdev = NULL;
 
-	zvr = kmem_alloc(sizeof (zv_request_t), KM_SLEEP);
-	zvr->zv_iokit = term;
-	taskq_init_ent(&zvr->ent);
-
 	/* Call terminate in the background */
-	taskq_dispatch_ent(zvol_taskq,
-		zvol_os_clear_private_cb, zvr, 0, &zvr->ent);
+	zvol_os_spawn(zvol_os_clear_private_cb, term);
+
 }
 
 /*
@@ -605,7 +607,7 @@ out_doi:
 
 		/* Register (async) IOKit zvol after disown and unlock */
 		/* The callback with release the mutex */
-		zvol_os_register_device(zv);
+		zvol_os_spawn(zvol_os_register_device_cb, zv);
 
 	} else {
 
@@ -613,6 +615,13 @@ out_doi:
 
 	printf("%s complete\n", __func__);
 	return (error);
+}
+
+
+static void zvol_os_rename_device_cb(void *param)
+{
+	zvol_state_t *zv = (zvol_state_t *)param;
+	zvolRenameDevice(zv);
 }
 
 static void
@@ -630,7 +639,7 @@ zvol_os_rename_minor(zvol_state_t *zv, const char *newname)
 	hlist_del(&zv->zv_hlink);
 	hlist_add_head(&zv->zv_hlink, ZVOL_HT_HEAD(zv->zv_hash));
 
-	zvolRenameDevice(zv);
+	zvol_os_spawn(zvol_os_rename_device_cb, zv);
 
 	/*
 	 * The block device's read-only state is briefly changed causing

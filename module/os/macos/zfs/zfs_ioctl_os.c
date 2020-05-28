@@ -69,7 +69,6 @@ zfs_vfs_ref(zfsvfs_t **zfvp)
 	if (*zfvp == NULL || (*zfvp)->z_vfs == NULL)
 		return (SET_ERROR(ESRCH));
 
-	printf("%s: busy\n", __func__);
 	error = vfs_busy((*zfvp)->z_vfs, LK_NOWAIT);
 	if (error != 0) {
 		*zfvp = NULL;
@@ -81,7 +80,6 @@ zfs_vfs_ref(zfsvfs_t **zfvp)
 void
 zfs_vfs_rele(zfsvfs_t *zfsvfs)
 {
-	printf("%s: unbusy\n", __func__);
 	vfs_unbusy(zfsvfs->z_vfs);
 }
 
@@ -112,7 +110,7 @@ zfsdev_state_init(dev_t dev)
 	}
 
 	/* Store this dev_t in tsd, so zfs_get_private() can retrieve it */
-	printf("%s: saving dev x%x (minor %d) for later\n", __func__, dev, minor);
+	//printf("%s: saving dev x%x (minor %d) for later\n", __func__, dev, minor);
 	tsd_set(zfsdev_private_tsd, (void *)(uintptr_t)dev);
 
 	//zs->zs_dev = dev;
@@ -151,12 +149,9 @@ zfsdev_state_destroy(dev_t dev)
 
 	ASSERT(MUTEX_HELD(&zfsdev_state_lock));
 
-	printf("%s: clearing dev\n", __func__);
 	tsd_set(zfsdev_private_tsd, NULL);
 
 	zs = zfsdev_get_state(minor(dev), ZST_ALL);
-
-	printf("%s: zs %p\n", __func__, zs);
 
 	if (!zs) {
 		printf("%s: no cleanup for minor x%x\n", __func__,
@@ -164,7 +159,7 @@ zfsdev_state_destroy(dev_t dev)
 		return (0);
 	}
 
-	printf("%s: minor %d\n", __func__, zs->zs_minor);
+	//printf("%s: minor %d\n", __func__, zs->zs_minor);
 
 	ASSERT(zs != NULL);
 	if (zs->zs_minor != -1) {
@@ -220,12 +215,16 @@ zfsdev_ioctl(dev_t dev, u_long cmd, caddr_t arg,  __unused int xflag,
 	uaddr = (user_addr_t)zit->zfs_cmd;
 
 	if (len != sizeof (zfs_iocparm_t)) {
-		printf("len %d vecnum: %d sizeof (zfs_cmd_t) %lu\n",
-			len, vecnum, sizeof (zfs_cmd_t));
+		/* printf("len %d vecnum: %d sizeof (zfs_cmd_t) %lu\n",
+		   len, vecnum, sizeof (zfs_cmd_t)); */
+		/*
+		 * We can get plenty raw ioctl()s here, for exaple open() will
+		 * cause spec_open() to issue DKIOCGETTHROTTLEMASK.
+		 */
 		return (EINVAL);
 	}
 
-	printf("%s: incoming vecnum %d\n", __func__, vecnum);
+	//printf("%s: incoming vecnum %d\n", __func__, vecnum);
 
 	zc = kmem_zalloc(sizeof (zfs_cmd_t), KM_SLEEP);
 
@@ -234,11 +233,7 @@ zfsdev_ioctl(dev_t dev, u_long cmd, caddr_t arg,  __unused int xflag,
 		goto out;
 	}
 
-	printf("copyin ok\n");
-
 	error = zfsdev_ioctl_common(vecnum, zc);
-
-	printf("copyout.. %d\n", error);
 
 	rc = copyout(zc, uaddr, sizeof (*zc));
 

@@ -350,7 +350,7 @@ snapdir_changed_cb(void *arg, uint64_t newval)
 {
 	zfsvfs_t *zfsvfs = arg;
 	zfsvfs->z_show_ctldir = newval;
-    dnlc_purge_vfsp(zfsvfs->z_vfs, 0);
+	cache_purgevfs(zfsvfs->z_vfs);
 }
 
 static void
@@ -826,9 +826,6 @@ zfsvfs_create_impl(zfsvfs_t **zfvp, zfsvfs_t *zfsvfs, objset_t *os)
 
 	rrm_init(&zfsvfs->z_teardown_lock, B_FALSE);
 
-	printf("zfsvfs %p rrm_init of %p\n",
-		zfsvfs, &zfsvfs->z_teardown_lock);
-
 	rw_init(&zfsvfs->z_teardown_inactive_lock, NULL, RW_DEFAULT, NULL);
 	rw_init(&zfsvfs->z_fuid_lock, NULL, RW_DEFAULT, NULL);
 
@@ -972,6 +969,8 @@ zfsvfs_free(zfsvfs_t *zfsvfs)
 		avl_destroy(&zfsvfs->z_hold_trees[i]);
 		mutex_destroy(&zfsvfs->z_hold_locks[i]);
 	}
+	kmem_free(zfsvfs->z_hold_trees, sizeof (avl_tree_t) * size);
+	kmem_free(zfsvfs->z_hold_locks, sizeof (kmutex_t) * size);
 
 #ifdef __APPLE__
 	dprintf("ZFS: Unloading hardlink AVLtree: %lu\n",
@@ -2306,8 +2305,13 @@ zfsvfs_teardown(zfsvfs_t *zfsvfs, boolean_t unmounting)
 		 * VFS has already blocked operations which add to the
 		 * z_all_znodes list and thus increment z_nr_znodes.
 		 */
-		taskq_wait_outstanding(dsl_pool_zrele_taskq(
-		    dmu_objset_pool(zfsvfs->z_os)), 0);
+		int round = 0;
+		while (!list_empty(&zfsvfs->z_all_znodes)) {
+			taskq_wait_outstanding(dsl_pool_zrele_taskq(
+			    dmu_objset_pool(zfsvfs->z_os)), 0);
+			if (++round > 1 && !unmounting)
+				break;
+		}
 	}
 
 	rrm_enter(&zfsvfs->z_teardown_lock, RW_WRITER, FTAG);
@@ -2319,7 +2323,7 @@ zfsvfs_teardown(zfsvfs_t *zfsvfs, boolean_t unmounting)
 		 * v_vfsp set to the parent's filesystem's vfsp.  Note,
 		 * 'z_parent' is self referential for non-snapshots.
 		 */
-		(void) dnlc_purge_vfsp(zfsvfs->z_parent->z_vfs, 0);
+		cache_purgevfs(zfsvfs->z_parent->z_vfs);
 	}
 
 	/*
@@ -2348,16 +2352,27 @@ zfsvfs_teardown(zfsvfs_t *zfsvfs, boolean_t unmounting)
 	 * will fail with EIO since we have z_teardown_lock for writer (only
 	 * relevant for forced unmount).
 	 *
-	 * Release all holds on dbufs.
+	 * Release all holds on dbufs. We also grab an extra reference to all
+	 * the remaining inodes so that the kernel does not attempt to free
+	 * any inodes of a suspended fs. This can cause deadlocks since the
+	 * zfs_resume_fs() process may involve starting threads, which might
+	 * attempt to free unreferenced inodes to free up memory for the new
+	 * thread.
 	 */
-	mutex_enter(&zfsvfs->z_znodes_lock);
-	for (zp = list_head(&zfsvfs->z_all_znodes); zp != NULL;
-	    zp = list_next(&zfsvfs->z_all_znodes, zp))
-		if (zp->z_sa_hdl) {
-			/* ASSERT(ZTOV(zp)->v_count >= 0); */
-			zfs_znode_dmu_fini(zp);
+	if (!unmounting) {
+		mutex_enter(&zfsvfs->z_znodes_lock);
+		for (zp = list_head(&zfsvfs->z_all_znodes); zp != NULL;
+			 zp = list_next(&zfsvfs->z_all_znodes, zp)) {
+			if (zp->z_sa_hdl)
+				zfs_znode_dmu_fini(zp);
+			if (VN_HOLD(ZTOV(zp)) == 0) {
+				vnode_ref(ZTOV(zp));
+				zp->z_suspended = B_TRUE;
+				VN_RELE(ZTOV(zp));
+			}
 		}
-	mutex_exit(&zfsvfs->z_znodes_lock);
+		mutex_exit(&zfsvfs->z_znodes_lock);
+	}
 
 	/*
 	 * If we are unmounting, set the unmounted flag and let new VFS ops
@@ -2404,6 +2419,7 @@ zfsvfs_teardown(zfsvfs_t *zfsvfs, boolean_t unmounting)
 	dmu_objset_evict_dbufs(zfsvfs->z_os);
 	dsl_dir_t *dd = os->os_dsl_dataset->ds_dir;
 	dsl_dir_cancel_waiters(dd);
+
 	return (0);
 }
 
@@ -2414,7 +2430,7 @@ zfs_vfs_unmount(struct mount *mp, int mntflags, vfs_context_t context)
 	objset_t *os;
 	char osname[MAXNAMELEN];
 	int ret;
-	cred_t *cr = (cred_t *)vfs_context_ucred(context);
+	/* cred_t *cr = (cred_t *)vfs_context_ucred(context); */
 	int destroyed_zfsctl = 0;
 
 	dprintf("%s\n", __func__);
@@ -2439,7 +2455,7 @@ zfs_vfs_unmount(struct mount *mp, int mntflags, vfs_context_t context)
 	 * parent's filesystem's vfsp.  Note, 'z_parent' is self
 	 * referential for non-snapshots.
 	 */
-	(void) dnlc_purge_vfsp(zfsvfs->z_parent->z_vfs, 0);
+	cache_purgevfs(zfsvfs->z_parent->z_vfs);
 
 	/*
 	 * Unmount any snapshots mounted under .zfs before unmounting the
@@ -2547,14 +2563,11 @@ zfs_vfs_unmount(struct mount *mp, int mntflags, vfs_context_t context)
 		dmu_objset_disown(os, B_TRUE, zfsvfs);
 	}
 
-    dprintf("OS released\n");
-
 	zfs_freevfs(zfsvfs->z_vfs);
 
 	dprintf("zfs_osx_proxy_remove");
 	zfs_osx_proxy_remove(osname);
 
-    dprintf("-unmount\n");
 	return (0);
 }
 
@@ -2973,12 +2986,16 @@ zfs_resume_fs(zfsvfs_t *zfsvfs, dsl_dataset_t *ds)
 	objset_t *os;
 	VERIFY3P(ds->ds_owner, ==, zfsvfs);
 	VERIFY(dsl_dataset_long_held(ds));
+	dsl_pool_t *dp = spa_get_dsl(dsl_dataset_get_spa(ds));
+	dsl_pool_config_enter(dp, FTAG);
 	VERIFY0(dmu_objset_from_ds(ds, &os));
+	dsl_pool_config_exit(dp, FTAG);
 
 	err = zfsvfs_init(zfsvfs, os);
 	if (err != 0)
 		goto bail;
 
+	ds->ds_dir->dd_activity_cancelled = B_FALSE;
     VERIFY(zfsvfs_setup(zfsvfs, B_FALSE) == 0);
 
 	zfs_set_fuid_feature(zfsvfs);
@@ -3001,6 +3018,15 @@ zfs_resume_fs(zfsvfs_t *zfsvfs, dsl_dataset_t *ds)
 			//remove_inode_hash(ZTOI(zp));
 			zp->z_is_stale = B_TRUE;
 		}
+
+		/* see comment in zfs_suspend_fs() */
+		if (zp->z_suspended) {
+			if (vnode_getwithref(ZTOV(zp)) == 0) {
+				vnode_rele(ZTOV(zp));
+				zfs_zrele_async(zp);
+				zp->z_suspended = B_FALSE;
+			}
+		}
 	}
 	mutex_exit(&zfsvfs->z_znodes_lock);
 
@@ -3012,6 +3038,8 @@ zfs_resume_fs(zfsvfs_t *zfsvfs, dsl_dataset_t *ds)
 		 */
 		zfs_unlinked_drain(zfsvfs);
 	}
+
+	cache_purgevfs(zfsvfs->z_parent->z_vfs);
 
 bail:
 	/* release the VFS ops */

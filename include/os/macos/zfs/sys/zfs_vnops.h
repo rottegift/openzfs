@@ -216,6 +216,7 @@ extern int   zpl_xattr_set_sa(struct vnode *vp, const char *name,
 							  cred_t *cr);
 extern int zpl_xattr_get_sa(struct vnode *vp, const char *name, void *value,
 							size_t size);
+extern void zfs_zrele_async(znode_t *zp);
 
     /*
      * OSX ACL Helper funcions

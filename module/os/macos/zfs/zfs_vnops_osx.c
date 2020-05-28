@@ -1658,18 +1658,25 @@ zfs_vnop_getattr(struct vnop_getattr_args *ap)
 #endif
 {
 	int error;
+	int nolock = 0;
 	DECLARE_CRED_AND_CONTEXT(ap);
 
 	/* dprintf("+vnop_getattr zp %p vp %p\n", VTOZ(ap->a_vp), ap->a_vp); */
 	VERIFY3P(VTOZ(ap->a_vp)->z_zfsvfs, ==, vfs_fsprivate(vnode_mount(ap->a_vp)));
 
+	/* Hold a lock so zfs_getattr_znode_unlocked() can run */
+	nolock = VN_HOLD(ap->a_vp);
+
 	error = zfs_getattr(ap->a_vp, ap->a_vap, /* flags */0, cr, ct);
 
-	if (!error)
+	if (error == 0) {
 		error = zfs_getattr_znode_unlocked(ap->a_vp, ap->a_vap);
-
+	}
 	if (error)
 		dprintf("-vnop_getattr '%p' %d\n", (ap->a_vp), error);
+
+	if (nolock == 0)
+		VN_RELE(ap->a_vp);
 
 	return (error);
 }
@@ -2985,64 +2992,7 @@ zfs_vnop_inactive(struct vnop_inactive_args *ap)
 #endif
 {
 	struct vnode *vp = ap->a_vp;
-	znode_t *zp = VTOZ(vp);
-	zfsvfs_t *zfsvfs = NULL;
-//	DECLARE_CRED(ap);
-
-	dprintf("vnop_inactive: zp %p vp %p type %u\n", zp, vp, vnode_vtype(vp));
-
-	if (!zp) return 0; /* zfs_remove will clear it in fastpath */
-
-	zfsvfs = zp->z_zfsvfs;
-
-	VERIFY3P(zp->z_zfsvfs, ==, vfs_fsprivate(vnode_mount(vp)));
-
-	if (vnode_isrecycled(ap->a_vp)) {
-	VERIFY3P(zp->z_zfsvfs, ==, vfs_fsprivate(vnode_mount(vp)));
-		/*
-		 * We can not call inactive at this time, as we are inside
-		 * vnode_create()->vclean() path. But since we are only here to
-		 * sync out atime, and we know vnop_reclaim will called next.
-		 *
-		 * However, we can cheat a little, by looking inside zfs_inactive
-		 * we can take the fast exits here as well, and only keep
-		 * node around for the syncing case
-		 */
-		rw_enter(&zfsvfs->z_teardown_inactive_lock, RW_READER);
-	VERIFY3P(zp->z_zfsvfs, ==, vfs_fsprivate(vnode_mount(vp)));
-		if (zp->z_sa_hdl == NULL) {
-			/*
-			 * The fs has been unmounted, or we did a
-			 * suspend/resume and this file no longer exists.
-			 */
-			rw_exit(&zfsvfs->z_teardown_inactive_lock);
-			return 0;
-		}
-
-		mutex_enter(&zp->z_lock);
-		if (zp->z_unlinked) {
-			/*
-			 * Fast path to recycle a vnode of a removed file.
-			 */
-			mutex_exit(&zp->z_lock);
-			rw_exit(&zfsvfs->z_teardown_inactive_lock);
-	VERIFY3P(zp->z_zfsvfs, ==, vfs_fsprivate(vnode_mount(vp)));
-			return 0;
-		}
-		mutex_exit(&zp->z_lock);
-		rw_exit(&zfsvfs->z_teardown_inactive_lock);
-
-	VERIFY3P(zp->z_zfsvfs, ==, vfs_fsprivate(vnode_mount(vp)));
-		return (0);
-	}
-
-
-	/* We can call it directly, huzzah! */
-	VERIFY3P(zp->z_zfsvfs, ==, vfs_fsprivate(vnode_mount(vp)));
-	zfs_zinactive(zp);
-	VERIFY3P(zp->z_zfsvfs, ==, vfs_fsprivate(vnode_mount(vp)));
-
-	/* dprintf("-vnop_inactive\n"); */
+	zfs_inactive(vp);
 	return (0);
 }
 

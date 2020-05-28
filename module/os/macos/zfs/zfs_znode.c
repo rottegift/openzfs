@@ -501,6 +501,7 @@ zfs_znode_dmu_fini(znode_t *zp)
 	zp->z_sa_hdl = NULL;
 }
 
+#if 0 // Until we need it ?
 static void
 zfs_vnode_destroy(struct vnode *vp)
 {
@@ -535,6 +536,7 @@ zfs_vnode_destroy(struct vnode *vp)
 		vnode_recycle(vp);
 	}
 }
+#endif
 
 /*
  * Construct a new znode/vnode and intialize.
@@ -551,11 +553,11 @@ zfs_znode_alloc(zfsvfs_t *zfsvfs, dmu_buf_t *db, int blksz,
 	struct vnode *vp;
 	uint64_t mode;
 	uint64_t parent;
-	sa_bulk_attr_t bulk[9];
+	sa_bulk_attr_t bulk[11];
 	int count = 0;
+	uint64_t projid = ZFS_DEFAULT_PROJID;
 
 	zp = kmem_cache_alloc(znode_cache, KM_SLEEP);
-	//zfs_znode_cache_constructor(zp, zfsvfs->z_parent->z_vfs, 0);
 
 	ASSERT(zp->z_dirlocks == NULL);
 	ASSERT(!POINTER_IS_VALID(zp->z_zfsvfs));
@@ -607,15 +609,19 @@ zfs_znode_alloc(zfsvfs_t *zfsvfs, dmu_buf_t *db, int blksz,
 	SA_ADD_BULK_ATTR(bulk, count, SA_ZPL_GID(zfsvfs), NULL,
 	    &zp->z_gid, 8);
 
-	if (sa_bulk_lookup(zp->z_sa_hdl, bulk, count) != 0 || zp->z_gen == 0) {
+	if (sa_bulk_lookup(zp->z_sa_hdl, bulk, count) != 0 || zp->z_gen == 0 ||
+	    (dmu_objset_projectquota_enabled(zfsvfs->z_os) &&
+	    (zp->z_pflags & ZFS_PROJID) &&
+	    sa_lookup(zp->z_sa_hdl, SA_ZPL_PROJID(zfsvfs), &projid, 8) != 0)) {
 		if (hdl == NULL)
 			sa_handle_destroy(zp->z_sa_hdl);
 		zp->z_sa_hdl = NULL;
 		printf("znode_alloc: sa_bulk_lookup failed - aborting\n");
-		zfs_vnode_destroy(vp);
+		kmem_cache_free(znode_cache, zp);
 		return (NULL);
 	}
 
+	zp->z_projid = projid;
 	zp->z_mode = mode;
 
 	mutex_enter(&zfsvfs->z_znodes_lock);
@@ -670,12 +676,13 @@ zfs_mknode(znode_t *dzp, vattr_t *vap, dmu_tx_t *tx, cred_t *cr,
 {
 	uint64_t	crtime[2], atime[2], mtime[2], ctime[2];
 	uint64_t	mode, size, links, parent, pflags;
+	uint64_t	projid = ZFS_DEFAULT_PROJID;
 	uint64_t	dzp_pflags = 0;
 	uint64_t	rdev = 0;
 	zfsvfs_t	*zfsvfs = dzp->z_zfsvfs;
 	dmu_buf_t	*db;
 	timestruc_t	now;
-	uint64_t	gen, obj, projid;
+	uint64_t	gen, obj;
 	int		bonuslen;
 	int		dnodesize;
 	sa_handle_t	*sa_hdl;
@@ -877,6 +884,10 @@ zfs_mknode(znode_t *dzp, vattr_t *vap, dmu_tx_t *tx, cred_t *cr,
 	if (obj_type == DMU_OT_ZNODE) {
 		SA_ADD_BULK_ATTR(sa_attrs, cnt, SA_ZPL_XATTR(zfsvfs), NULL,
 		    &empty_xattr, 8);
+	} else if (dmu_objset_projectquota_enabled(zfsvfs->z_os) &&
+		pflags & ZFS_PROJID) {
+		SA_ADD_BULK_ATTR(sa_attrs, cnt, SA_ZPL_PROJID(zfsvfs),
+			NULL, &projid, 8);
 	}
 	if (obj_type == DMU_OT_ZNODE ||
 	    (vap->va_type == VBLK || vap->va_type == VCHR)) {
@@ -1397,18 +1408,13 @@ zfs_zinactive(znode_t *zp)
 
 	ASSERT(zp->z_sa_hdl);
 
-	printf("%s 1 %p\n", __func__, zp->z_zfsvfs);
-
 	/*
 	 * Don't allow a zfs_zget() while were trying to release this znode
 	 */
 	zh = zfs_znode_hold_enter(zfsvfs, z_id);
 
-	printf("%s 2 %p\n", __func__, zp->z_zfsvfs);
-
 	mutex_enter(&zp->z_lock);
 
-	printf("%s 22 %p\n", __func__, zp->z_zfsvfs);
 	/*
 	 * If this was the last reference to a file with no links, remove
 	 * the file from the file system unless the file system is mounted
@@ -1418,29 +1424,20 @@ zfs_zinactive(znode_t *zp)
 	 * closed.  The file will remain in the unlinked set.
 	 */
 	if (zp->z_unlinked) {
-		printf("%s 23 %p\n", __func__, zp->z_zfsvfs);
 		ASSERT(!zfsvfs->z_issnap);
 
 		if (!(vfs_isrdonly(zfsvfs->z_vfs)) && !zfs_unlink_suspend_progress) {
-
-			printf("%s 24 %p\n", __func__, zp->z_zfsvfs);
-
 			mutex_exit(&zp->z_lock);
 			zfs_znode_hold_exit(zfsvfs, zh);
-			printf("%s 25 %p\n", __func__, zp->z_zfsvfs);
 			zfs_rmnode(zp);
-			printf("%s 26 %p\n", __func__, zp->z_zfsvfs);
 			return;
 		}
 	}
 
 	mutex_exit(&zp->z_lock);
-	printf("%s 3 %p\n", __func__, zp->z_zfsvfs);
 	zfs_znode_dmu_fini(zp);
 
-	printf("%s 4 %p\n", __func__, zp->z_zfsvfs);
 	zfs_znode_hold_exit(zfsvfs, zh);
-	printf("%s 5 %p\n", __func__, zp->z_zfsvfs);
 }
 
 void

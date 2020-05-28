@@ -59,7 +59,7 @@
 #include <sys/debug.h>
 
 /* Initial size of array, and realloc growth size */
-#define TSD_ALLOC_SIZE 5
+#define TSD_ALLOC_SIZE 10
 
 /* array of dtors, allocated in init */
 static dtor_func_t *tsd_dtor_array = NULL;
@@ -129,11 +129,9 @@ tsd_set(uint_t key, void *value)
 			mutex_enter(&spl_tsd_mutex);
 			avl_remove(&tsd_tree, entry);
 			mutex_exit(&spl_tsd_mutex);
-
 			kmem_free(entry, sizeof(*entry));
 			return 0;
 		}
-
 		entry->tsd_value = value;
 		return 0;
 	}

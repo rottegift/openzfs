@@ -1261,8 +1261,6 @@ zfs_lookup(znode_t *zdp, char *nm, znode_t **zpp, int flags,
 	ZFS_ENTER(zfsvfs);
 	ZFS_VERIFY_ZP(zdp);
 
-	printf("%s enter\n", __func__);
-
 	*zpp = NULL;
 
 	/*
@@ -1291,9 +1289,6 @@ zfs_lookup(znode_t *zdp, char *nm, znode_t **zpp, int flags,
 	}
 
 	error = zfs_dirlook(zdp, nm, zpp, flags, direntflags, realpnp);
-
-	printf("dirlook returned %d with zp %p\n",
-		error, error == 0 ? *zpp : NULL);
 
 	ZFS_EXIT(zfsvfs);
 	return (error);
@@ -4430,25 +4425,33 @@ top:
 
 /*ARGSUSED*/
 void
-zfs_inactive(struct vnode *ip)
+zfs_inactive(struct vnode *vp)
 {
-	znode_t	*zp = ITOZ(ip);
-	zfsvfs_t *zfsvfs = ITOZSB(ip);
+	znode_t	*zp = VTOZ(vp);
+	zfsvfs_t *zfsvfs = ITOZSB(vp);
 	int error;
-	int need_unlock = 0;
 
-	/* Only read lock if we haven't already write locked, e.g. rollback */
-	if (!RW_WRITE_HELD(&zfsvfs->z_teardown_inactive_lock)) {
-		need_unlock = 1;
-		rw_enter(&zfsvfs->z_teardown_inactive_lock, RW_READER);
-	}
+	rw_enter(&zfsvfs->z_teardown_inactive_lock, RW_READER);
 	if (zp->z_sa_hdl == NULL) {
-		if (need_unlock)
-			rw_exit(&zfsvfs->z_teardown_inactive_lock);
+		/*
+		 * The fs has been unmounted, or we did a
+		 * suspend/resume and this file no longer exists.
+		 */
+		rw_exit(&zfsvfs->z_teardown_inactive_lock);
+		vnode_recycle(vp);
 		return;
 	}
 
-	if (zp->z_atime_dirty && zp->z_unlinked == B_FALSE) {
+	if (zp->z_unlinked) {
+		/*
+		 * Fast path to recycle a vnode of a removed file.
+		 */
+		rw_exit(&zfsvfs->z_teardown_inactive_lock);
+		vnode_recycle(vp);
+		return;
+	}
+
+	if (zp->z_atime_dirty && zp->z_unlinked == 0) {
 		dmu_tx_t *tx = dmu_tx_create(zfsvfs->z_os);
 
 		dmu_tx_hold_sa(tx, zp->z_sa_hdl, B_FALSE);
@@ -4457,18 +4460,13 @@ zfs_inactive(struct vnode *ip)
 		if (error) {
 			dmu_tx_abort(tx);
 		} else {
-			mutex_enter(&zp->z_lock);
 			(void) sa_update(zp->z_sa_hdl, SA_ZPL_ATIME(zfsvfs),
-			    (void *)&zp->z_atime, sizeof (zp->z_atime), tx);
-			zp->z_atime_dirty = B_FALSE;
-			mutex_exit(&zp->z_lock);
+				(void *)&zp->z_atime, sizeof (zp->z_atime), tx);
+			zp->z_atime_dirty = 0;
 			dmu_tx_commit(tx);
 		}
 	}
-
-	zfs_zinactive(zp);
-	if (need_unlock)
-		rw_exit(&zfsvfs->z_teardown_inactive_lock);
+	rw_exit(&zfsvfs->z_teardown_inactive_lock);
 }
 
 static int

@@ -1059,6 +1059,9 @@ zfsctl_snapshot_mount(struct vnode *vp, int flags)
                 list_remove(&zfsctl_mounts_list, zcm);
 				mutex_exit(&zfsctl_mounts_lock);
 
+				mutex_destroy(&zcm->zcm_lock);
+				cv_destroy(&zcm->zcm_cv);
+
 				kmem_free(zcm, sizeof(zfsctl_mounts_waiting_t));
 
 				/*
@@ -1207,7 +1210,6 @@ zfsctl_snapshot_unmount_node(struct vnode *vp, int flags)
 int
 zfsctl_snapshot_unmount(const char *snapname, int flags)
 {
-	int error;
 	znode_t *rootzp;
 	zfsvfs_t *zfsvfs;
 

@@ -64,12 +64,12 @@ extern int zfsctl_fid(struct vnode *ip, fid_t *fidp);
 /* zfsctl '.zfs' functions */
 extern int zfsctl_root_lookup(struct vnode *dip, char *name,
     struct vnode **ipp, int flags, cred_t *cr, int *direntflags,
-    pathname_t *realpnp);
+    struct componentname *realpnp);
 
 /* zfsctl '.zfs/snapshot' functions */
 extern int zfsctl_snapdir_lookup(struct vnode *dip, char *name,
     struct vnode **ipp, int flags, cred_t *cr, int *direntflags,
-    pathname_t *realpnp);
+    struct componentname *realpnp);
 extern int zfsctl_snapdir_rename(struct vnode *sdip, char *sname,
     struct vnode *tdip, char *tname, cred_t *cr, int flags);
 extern int zfsctl_snapdir_remove(struct vnode *dip, char *name, cred_t *cr,
@@ -87,7 +87,7 @@ extern int zfsctl_snapdir_vget(struct mount *sb, uint64_t objsetid,
 /* zfsctl '.zfs/shares' functions */
 extern int zfsctl_shares_lookup(struct vnode *dip, char *name,
     struct vnode **ipp, int flags, cred_t *cr, int *direntflags,
-    pathname_t *realpnp);
+    struct componentname *realpnp);
 
 extern int zfsctl_vnop_lookup(struct vnop_lookup_args *);
 extern int zfsctl_vnop_getattr(struct vnop_getattr_args *);

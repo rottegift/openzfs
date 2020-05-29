@@ -1064,7 +1064,7 @@ zfs_zget(zfsvfs_t *zfsvfs, uint64_t obj_num, znode_t **zpp)
 
 int
 zfs_zget_ext(zfsvfs_t *zfsvfs, uint64_t obj_num, znode_t **zpp,
-			 int flags)
+    int flags)
 {
 	dmu_object_info_t doi;
 	dmu_buf_t		*db;
@@ -1220,7 +1220,7 @@ again:
 		return (err);
 	}
 
-	printf("zget create: setting to %p\n", zp);
+	printf("zget create: %d setting to %p\n", obj_num, zp);
 	*zpp = zp;
 
 	// Spawn taskq to attach while we are locked

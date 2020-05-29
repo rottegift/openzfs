@@ -1253,7 +1253,7 @@ zfs_access(struct vnode *vp, int mode, int flag, cred_t *cr)
 /* ARGSUSED */
 int
 zfs_lookup(znode_t *zdp, char *nm, znode_t **zpp, int flags,
-    cred_t *cr, int *direntflags, pathname_t *realpnp)
+    cred_t *cr, int *direntflags, struct componentname *realpnp)
 {
 	zfsvfs_t *zfsvfs = ZTOZSB(zdp);
 	int error = 0;
@@ -1322,7 +1322,7 @@ int
 zfs_create(znode_t *dzp, char *name, vattr_t *vap, int excl,
     int mode, znode_t **zpp, cred_t *cr, int flag, vsecattr_t *vsecp)
 {
-	znode_t		*zp;
+	znode_t		*zp = NULL;
 	zfsvfs_t	*zfsvfs = ZTOZSB(dzp);
 	zilog_t		*zilog;
 	objset_t	*os;
@@ -1469,6 +1469,7 @@ top:
 			ZFS_EXIT(zfsvfs);
 			return (error);
 		}
+
 		zfs_mknode(dzp, vap, tx, cr, 0, &zp, &acl_ids);
 
 		error = zfs_link_create(dl, zp, tx, ZNEW);
@@ -1480,6 +1481,17 @@ top:
 			zfs_znode_delete(zp, tx);
 			zfs_acl_ids_free(&acl_ids);
 			dmu_tx_commit(tx);
+
+			/*
+			 * Failed, have zp but on OsX we don't have a vp, as it would
+			 * have been attached below, and we've cleared out zp, signal
+			 * then not to call zrele() on it.
+			 */
+			if (ZTOV(zp) == NULL) {
+				zfs_znode_free(zp);
+				zp = NULL;
+			}
+
 			goto out;
 		}
 
@@ -1601,8 +1613,8 @@ zfs_remove(znode_t *dzp, char *name, cred_t *cr, int flags)
 	boolean_t	may_delete_now, delete_now = FALSE;
 	boolean_t	unlinked, toobig = FALSE;
 	uint64_t	txtype;
-	pathname_t	*realnmp = NULL;
-	pathname_t	realnm;
+	struct componentname	*realnmp = NULL;
+	struct componentname	realnm;
 	int		error;
 	int		zflg = ZEXISTS;
 	boolean_t	waited = B_FALSE;

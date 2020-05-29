@@ -1658,14 +1658,9 @@ zfs_vnop_getattr(struct vnop_getattr_args *ap)
 #endif
 {
 	int error;
-	int nolock = 0;
 	DECLARE_CRED_AND_CONTEXT(ap);
 
 	/* dprintf("+vnop_getattr zp %p vp %p\n", VTOZ(ap->a_vp), ap->a_vp); */
-	VERIFY3P(VTOZ(ap->a_vp)->z_zfsvfs, ==, vfs_fsprivate(vnode_mount(ap->a_vp)));
-
-	/* Hold a lock so zfs_getattr_znode_unlocked() can run */
-	nolock = VN_HOLD(ap->a_vp);
 
 	error = zfs_getattr(ap->a_vp, ap->a_vap, /* flags */0, cr, ct);
 
@@ -1674,9 +1669,6 @@ zfs_vnop_getattr(struct vnop_getattr_args *ap)
 	}
 	if (error)
 		dprintf("-vnop_getattr '%p' %d\n", (ap->a_vp), error);
-
-	if (nolock == 0)
-		VN_RELE(ap->a_vp);
 
 	return (error);
 }
@@ -3306,15 +3298,15 @@ zfs_vnop_getxattr(struct vnop_getxattr_args *ap)
 {
 	DECLARE_CRED(ap);
 	struct vnode *vp = ap->a_vp;
-	struct vnode *xdvp = NULLVP;
-	struct vnode *xvp = NULLVP;
 	znode_t  *zp = VTOZ(vp);
 	zfsvfs_t  *zfsvfs = zp->z_zfsvfs;
 	struct uio *uio = ap->a_uio;
-	pathname_t cn = { 0 };
+	struct componentname cn = { 0 };
 	int  error = 0;
+	int size = 0;
 	struct uio *finderinfo_uio = NULL;
 	uint64_t resid = uio ? uio_resid(uio) : 0;
+	znode_t *xdzp = NULL, *xzp = NULL;
 
 	dprintf("+getxattr vp %p: '%s'\n", ap->a_vp, ap->a_name);
 
@@ -3351,12 +3343,11 @@ zfs_vnop_getxattr(struct vnop_getxattr_args *ap)
 		if (!resid) { /* Lookup size */
 
 			rw_enter(&zp->z_xattr_lock, RW_READER);
-			error = zpl_xattr_get_sa(vp, ap->a_name, NULL, 0);
+			size = zpl_xattr_get_sa(vp, ap->a_name, NULL, 0);
 			rw_exit(&zp->z_xattr_lock);
-			if (error > 0) {
+			if (size > 0) {
 				dprintf("ZFS: returning XATTR size %d\n", error);
-				*ap->a_size = error;
-				error = 0;
+				*ap->a_size = size;
 				goto out;
 			}
 		}
@@ -3365,14 +3356,13 @@ zfs_vnop_getxattr(struct vnop_getxattr_args *ap)
 			value = kmem_alloc(resid, KM_SLEEP);
 		if (value && resid) {
 			rw_enter(&zp->z_xattr_lock, RW_READER);
-			error = zpl_xattr_get_sa(vp, ap->a_name, value, resid);
+			size = zpl_xattr_get_sa(vp, ap->a_name, value, resid);
 			rw_exit(&zp->z_xattr_lock);
 
-			//dprintf("ZFS: SA XATTR said %d\n", error);
+			//dprintf("ZFS: SA XATTR said %d\n", size);
 
-			if (error > 0) {
-				uiomove((const char*)value, error, 0, uio);
-				error = 0;
+			if (size > 0) {
+				uiomove((const char*)value, size, 0, uio);
 			}
 			kmem_free(value, resid);
 
@@ -3383,13 +3373,12 @@ zfs_vnop_getxattr(struct vnop_getxattr_args *ap)
 
 
 	/* Grab the hidden attribute directory vnode. */
-	znode_t *xdzp, *xzp;
 	if ((error = zfs_get_xattrdir(zp, &xdzp, cr, 0))) {
 		goto out;
 	}
 
-	cn.pn_bufsize = strlen(ap->a_name) + 1;
-	cn.pn_buf = (char*)kmem_zalloc(cn.pn_bufsize, KM_SLEEP);
+	cn.cn_namelen = strlen(ap->a_name) + 1;
+	cn.cn_nameptr = (char*)kmem_zalloc(cn.cn_namelen, KM_SLEEP);
 
 	/* Lookup the attribute name. */
 	if ((error = zfs_dirlook(xdzp, (char *)ap->a_name, &xzp, 0, NULL,
@@ -3458,12 +3447,12 @@ zfs_vnop_getxattr(struct vnop_getxattr_args *ap)
 out:
 	if (finderinfo_uio) uio_free(finderinfo_uio);
 
-	if (cn.pn_buf)
-		kmem_free(cn.pn_buf, cn.pn_bufsize);
-	if (xvp) {
+	if (cn.cn_nameptr)
+		kmem_free(cn.cn_nameptr, cn.cn_namelen);
+	if (xzp) {
 		zrele(xzp);
 	}
-	if (xdvp) {
+	if (xdzp) {
 		zrele(xdzp);
 	}
 
@@ -3489,7 +3478,6 @@ zfs_vnop_setxattr(struct vnop_setxattr_args *ap)
 //dprintf("%s\n", __func__);
 	DECLARE_CRED(ap);
 	struct vnode *vp = ap->a_vp;
-//	struct vnode *xdvp = NULLVP;
 	struct vnode *xvp = NULLVP;
 	znode_t  *zp = VTOZ(vp);
 	zfsvfs_t  *zfsvfs = zp->z_zfsvfs;
@@ -3632,11 +3620,9 @@ zfs_vnop_removexattr(struct vnop_removexattr_args *ap)
 //	DECLARE_CRED_AND_CONTEXT(ap);
 	DECLARE_CRED(ap);
 	struct vnode *vp = ap->a_vp;
-//	struct vnode *xdvp = NULLVP;
-//	struct vnode *xvp = NULLVP;
 	znode_t  *zp = VTOZ(vp);
 	zfsvfs_t  *zfsvfs = zp->z_zfsvfs;
-	pathname_t cn = { 0 };
+	struct componentname cn = { 0 };
 	int  error;
 	uint64_t xattr;
 	znode_t *xdzp = NULL, *xzp = NULL;
@@ -3692,8 +3678,8 @@ zfs_vnop_removexattr(struct vnop_removexattr_args *ap)
 		goto out;
 	}
 
-	cn.pn_bufsize = strlen(ap->a_name)+1;
-	cn.pn_buf = (char *)kmem_zalloc(cn.pn_bufsize, KM_SLEEP);
+	cn.cn_namelen = strlen(ap->a_name)+1;
+	cn.cn_nameptr = (char *)kmem_zalloc(cn.cn_namelen, KM_SLEEP);
 
 	/* Lookup the attribute name. */
 	if ((error = zfs_dirlook(xdzp, (char *)ap->a_name, &xzp, 0, NULL,
@@ -3706,8 +3692,8 @@ zfs_vnop_removexattr(struct vnop_removexattr_args *ap)
 	error = zfs_remove(xdzp, (char *)ap->a_name, cr, /* flags */0);
 
 out:
-	if (cn.pn_buf)
-		kmem_free(cn.pn_buf, cn.pn_bufsize);
+	if (cn.cn_nameptr)
+		kmem_free(cn.cn_nameptr, cn.cn_namelen);
 
 	if (xzp) {
 		zrele(xzp);
@@ -3884,7 +3870,7 @@ zfs_vnop_getnamedstream(struct vnop_getnamedstream_args *ap)
 //	struct vnode *xdvp = NULLVP;
 	znode_t  *zp = VTOZ(vp);
 	zfsvfs_t  *zfsvfs = zp->z_zfsvfs;
-	pathname_t cn = { 0 };
+	struct componentname cn = { 0 };
 	int  error = ENOATTR;
 	znode_t *xdzp = NULL;
 	znode_t *xzp = NULL;
@@ -3912,8 +3898,8 @@ zfs_vnop_getnamedstream(struct vnop_getnamedstream_args *ap)
 	if (zfs_get_xattrdir(zp, &xdzp, cr, 0) != 0)
 		goto out;
 
-	cn.pn_bufsize = strlen(ap->a_name) + 1;
-	cn.pn_buf = (char *)kmem_zalloc(cn.pn_bufsize, KM_SLEEP);
+	cn.cn_namelen = strlen(ap->a_name) + 1;
+	cn.cn_nameptr = (char *)kmem_zalloc(cn.cn_namelen, KM_SLEEP);
 
 	/* Lookup the attribute name. */
 	if ((error = zfs_dirlook(xdzp, (char *)ap->a_name, &xzp, 0, NULL,
@@ -3924,7 +3910,7 @@ zfs_vnop_getnamedstream(struct vnop_getnamedstream_args *ap)
 		*svpp = ZTOV(xzp);
 	}
 
-	kmem_free(cn.pn_buf, cn.pn_bufsize);
+	kmem_free(cn.cn_nameptr, cn.cn_namelen);
 
 out:
 	if (xdzp)

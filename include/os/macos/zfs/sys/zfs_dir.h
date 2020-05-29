@@ -51,7 +51,7 @@ extern "C" {
 
 extern int zfs_dirent_lock(zfs_dirlock_t **dlpp, znode_t *dzp, char *name,
                            znode_t **zpp, int flag, int *direntflags,
-                           pathname_t *realpnp);
+                           struct componentname *realpnp);
 
 extern void zfs_dirent_unlock(zfs_dirlock_t *);
 extern int zfs_link_create(zfs_dirlock_t *, znode_t *, dmu_tx_t *, int);
@@ -59,7 +59,7 @@ extern int zfs_link_destroy(zfs_dirlock_t *, znode_t *, dmu_tx_t *, int,
     boolean_t *);
 
 extern int zfs_dirlook(znode_t *, char *name, znode_t **, int,
-    int *deflg, pathname_t *rpnp);
+    int *deflg, struct componentname *rpnp);
 
 extern void zfs_mknode(znode_t *dzp, vattr_t *vap, dmu_tx_t *tx, cred_t *cr,
                        uint_t flag, znode_t **zpp, zfs_acl_ids_t *acl_ids);

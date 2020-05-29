@@ -351,7 +351,7 @@ zfs_root_dotdot(struct vnode *vp)
  */
 int
 zfsctl_root_lookup(struct vnode *dvp, char *name, struct vnode **vpp,
-    int flags, cred_t *cr, int *direntflags, pathname_t *realpnp)
+    int flags, cred_t *cr, int *direntflags, struct componentname *realpnp)
 {
 	znode_t *dzp = VTOZ(dvp);
 	zfsvfs_t *zfsvfs = ZTOZSB(dzp);

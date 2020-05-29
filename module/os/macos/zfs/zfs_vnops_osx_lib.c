@@ -254,7 +254,8 @@ zfs_getattr_znode_unlocked(struct vnode *vp, vattr_t *vap)
 	SA_ADD_BULK_ATTR(bulk, count, SA_ZPL_FLAGS(zfsvfs), NULL,
 					 &zp->z_pflags, 8);
 
-	/* Unfortunately, sa_bulk_lookup does not let you handle optional SA entries
+	/* Unfortunately, sa_bulk_lookup does not let you handle optional
+	 * SA entries - so have to look up the optionals individually.
 	 */
 	error = sa_bulk_lookup(zp->z_sa_hdl, bulk, count);
 	if (error) {
@@ -262,6 +263,7 @@ zfs_getattr_znode_unlocked(struct vnode *vp, vattr_t *vap)
 			   error, parent, zp->z_pflags );
 		mutex_exit(&zp->z_lock);
 		ZFS_EXIT(zfsvfs);
+		return 0;
 	}
 
 #ifdef VNODE_ATTR_va_addedtime
@@ -571,18 +573,6 @@ vfs_has_feature(vfs_t *vfsp, vfs_feature_t vfsft)
 	}
 }
 
-#if 0
-int pn_alloc(pathname_t *p)
-{
-    return ENOTSUP;
-}
-
-int pn_free(pathname_t *p)
-{
-    return ENOTSUP;
-}
-#endif
-
 int
 zfs_access_native_mode(struct vnode *vp, int *mode, cred_t *cr,
                        caller_context_t *ct)
@@ -760,7 +750,7 @@ zpl_obtain_xattr(znode_t *dzp, const char *name, mode_t mode, cred_t *cr,
 	dmu_tx_t  *tx;
 	struct vnode_attr  vattr;
 	int error;
-	pathname_t cn = { 0 };
+	struct componentname cn = { 0 };
 	zfs_acl_ids_t	acl_ids;
 
 	/* zfs_dirent_lock() expects a component name */
@@ -779,8 +769,8 @@ zpl_obtain_xattr(znode_t *dzp, const char *name, mode_t mode, cred_t *cr,
 		return (error);
 	}
 
-	cn.pn_bufsize = strlen(name)+1;
-	cn.pn_buf = (char *)kmem_zalloc(cn.pn_bufsize, KM_SLEEP);
+	cn.cn_namelen = strlen(name)+1;
+	cn.cn_nameptr = (char *)kmem_zalloc(cn.cn_namelen, KM_SLEEP);
 
 
  top:
@@ -835,8 +825,8 @@ zpl_obtain_xattr(znode_t *dzp, const char *name, mode_t mode, cred_t *cr,
 	zfs_dirent_unlock(dl);
  out:
     zfs_acl_ids_free(&acl_ids);
-    if (cn.pn_buf)
-		kmem_free(cn.pn_buf, cn.pn_bufsize);
+    if (cn.cn_nameptr)
+		kmem_free(cn.cn_nameptr, cn.cn_namelen);
 
 	/* The REPLACE error if doesn't exist is ENOATTR */
 	if ((flag & ZEXISTS) && (error == ENOENT))
@@ -1341,12 +1331,12 @@ void fileattrpack(attrinfo_t *aip, zfsvfs_t *zfsvfs, znode_t *zp)
                        &xattr, sizeof(xattr)) &&
             xattr) {
 			znode_t *xdzp = NULL, *xzp = NULL;
-			pathname_t cn = { 0 };
+			struct componentname cn = { 0 };
 			char *name = NULL;
 
 			name = spa_strdup(XATTR_RESOURCEFORK_NAME);
-			cn.pn_bufsize = strlen(name)+1;
-			cn.pn_buf = kmem_zalloc(cn.pn_bufsize, KM_SLEEP);
+			cn.cn_namelen = strlen(name)+1;
+			cn.cn_nameptr = kmem_zalloc(cn.cn_namelen, KM_SLEEP);
 
 			/* Grab the hidden attribute directory vnode. */
 			if (zfs_get_xattrdir(zp, &xdzp, cr, 0) == 0 &&
@@ -1355,7 +1345,7 @@ void fileattrpack(attrinfo_t *aip, zfsvfs_t *zfsvfs, znode_t *zp)
 				rsrcsize = xzp->z_size;
 			}
             spa_strfree(name);
-			kmem_free(cn.pn_buf, cn.pn_bufsize);
+			kmem_free(cn.cn_nameptr, cn.cn_namelen);
 
 			if (xzp)
 				zrele(xzp);
@@ -1527,7 +1517,7 @@ void getfinderinfo(znode_t *zp, cred_t *cr, finderinfo_t *fip)
 	znode_t	*xdzp = NULL;
 	znode_t	*xzp = NULL;
 	struct uio		*auio = NULL;
-	pathname_t  cn = { 0 };
+	struct componentname  cn = { 0 };
 	int		error;
     uint64_t xattr = 0;
 	char *name = NULL;
@@ -1554,8 +1544,8 @@ void getfinderinfo(znode_t *zp, cred_t *cr, finderinfo_t *fip)
 	}
 
 	name = spa_strdup(XATTR_FINDERINFO_NAME);
-	cn.pn_bufsize = strlen(name)+1;
-	cn.pn_buf = kmem_zalloc(cn.pn_bufsize, KM_SLEEP);
+	cn.cn_namelen = strlen(name)+1;
+	cn.cn_nameptr = kmem_zalloc(cn.cn_namelen, KM_SLEEP);
 
 	if ((error = zfs_dirlook(xdzp, name, &xzp, 0, NULL, &cn))) {
 		goto out;
@@ -1565,8 +1555,8 @@ void getfinderinfo(znode_t *zp, cred_t *cr, finderinfo_t *fip)
 out:
     if (name)
         spa_strfree(name);
-	if (cn.pn_buf)
-		kmem_free(cn.pn_buf, cn.pn_bufsize);
+	if (cn.cn_nameptr)
+		kmem_free(cn.cn_nameptr, cn.cn_namelen);
 	if (auio)
 		uio_free(auio);
 	if (xzp)

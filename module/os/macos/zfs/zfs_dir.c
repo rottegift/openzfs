@@ -61,7 +61,7 @@
  */
 static int
 zfs_match_find(zfsvfs_t *zfsvfs, znode_t *dzp, char *name, matchtype_t mt,
-    boolean_t update, int *deflags, pathname_t *rpnp, uint64_t *zoid)
+    boolean_t update, int *deflags, struct componentname *rpnp, uint64_t *zoid)
 {
 	boolean_t conflict = B_FALSE;
 	int error;
@@ -71,8 +71,8 @@ zfs_match_find(zfsvfs_t *zfsvfs, znode_t *dzp, char *name, matchtype_t mt,
 		char *buf = NULL;
 
 		if (rpnp) {
-			buf = rpnp->pn_buf;
-			bufsz = rpnp->pn_bufsize;
+			buf = rpnp->cn_nameptr;
+			bufsz = rpnp->cn_namelen;
 		}
 
 		/*
@@ -140,7 +140,7 @@ zfs_match_find(zfsvfs_t *zfsvfs, znode_t *dzp, char *name, matchtype_t mt,
  */
 int
 zfs_dirent_lock(zfs_dirlock_t **dlpp, znode_t *dzp, char *name, znode_t **zpp,
-    int flag, int *direntflags, pathname_t *realpnp)
+    int flag, int *direntflags, struct componentname *realpnp)
 {
 	zfsvfs_t	*zfsvfs = ZTOZSB(dzp);
 	zfs_dirlock_t	*dl;
@@ -380,7 +380,7 @@ zfs_dirent_unlock(zfs_dirlock_t *dl)
  */
 int
 zfs_dirlook(znode_t *dzp, char *name, znode_t **zpp, int flags,
-    int *deflg, pathname_t *rpnp)
+    int *deflg, struct componentname *rpnp)
 {
 	zfs_dirlock_t *dl;
 	znode_t *zp;
@@ -437,7 +437,7 @@ zfs_dirlook(znode_t *dzp, char *name, znode_t **zpp, int flags,
 	}
 
 	if ((flags & FIGNORECASE) && rpnp && !error)
-		(void) strlcpy(rpnp->pn_buf, name, rpnp->pn_bufsize);
+		(void) strlcpy(rpnp->cn_nameptr, name, rpnp->cn_namelen);
 
 	return (error);
 }

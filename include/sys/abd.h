@@ -52,13 +52,13 @@ typedef struct abd {
 	union {
 		struct abd_scatter {
 			uint_t		abd_offset;
-#if defined(__FreeBSD__) && defined(_KERNEL)
+#if defined(_KERNEL) && ( defined(__FreeBSD__) || defined(__APPLE__) )
 			uint_t  abd_chunk_size;
 			void    *abd_chunks[];
 #else
 			uint_t		abd_nents;
 			struct scatterlist *abd_sgl;
-#endif
+#endif /* KERNEL */
 		} abd_scatter;
 		struct abd_linear {
 			void		*abd_buf;
@@ -122,10 +122,11 @@ void abd_copy_off(abd_t *, abd_t *, size_t, size_t, size_t);
 void abd_copy_from_buf_off(abd_t *, const void *, size_t, size_t);
 void abd_copy_to_buf_off(void *, abd_t *, size_t, size_t);
 int abd_cmp(abd_t *, abd_t *);
+int abd_cmp_size(abd_t *, abd_t *, size_t);
 int abd_cmp_buf_off(abd_t *, const void *, size_t, size_t);
 void abd_zero_off(abd_t *, size_t, size_t);
 
-#if defined(_KERNEL)
+#if defined(_KERNEL) && !defined(__APPLE__)
 unsigned int abd_scatter_bio_map_off(struct bio *, abd_t *, unsigned int,
 		size_t);
 unsigned long abd_nr_pages_off(abd_t *, unsigned int, size_t);
@@ -173,6 +174,11 @@ abd_zero(abd_t *abd, size_t size)
 {
 	abd_zero_off(abd, 0, size);
 }
+
+#ifdef __APPLE__
+void abd_return_buf_off(abd_t *, void *, size_t, size_t, size_t);
+void abd_return_buf_copy_off(abd_t *, void *, size_t, size_t, size_t);
+#endif
 
 /*
  * Module lifecycle

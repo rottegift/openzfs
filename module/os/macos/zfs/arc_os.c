@@ -850,16 +850,6 @@ arc_prune_async(int64_t adjust)
 	mutex_exit(&arc_prune_mtx);
 }
 
-void
-arc_register_hotplug(void)
-{
-}
-
-void
-arc_unregister_hotplug(void)
-{
-}
-
 #else /* KERNEL */
 
 int64_t
@@ -892,6 +882,8 @@ arc_free_memory(void)
 	return (spa_get_random(arc_all_memory() * 20 / 100));
 }
 
+#endif /* KERNEL */
+
 void
 arc_register_hotplug(void)
 {
@@ -901,5 +893,3 @@ void
 arc_unregister_hotplug(void)
 {
 }
-
-#endif /* KERNEL */

@@ -36,6 +36,7 @@
 #include <sys/debug.h>
 
 typedef	struct iovec	iovec_t;
+
 typedef	enum uio_seg	zfs_uio_seg_t;
 typedef	enum uio_rw	zfs_uio_rw_t;
 

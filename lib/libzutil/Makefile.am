@@ -52,7 +52,8 @@ libzutil_la_LIBADD = \
 
 if BUILD_LINUX
 libzutil_la_LIBADD += \
-        $(abs_top_builddir)/lib/libefi/libefi.la
+        $(abs_top_builddir)/lib/libefi/libefi.la \
+	-lrt
 endif
 
 if BUILD_MACOS

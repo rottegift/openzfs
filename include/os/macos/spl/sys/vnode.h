@@ -42,15 +42,9 @@
 
 #include <kern/locks.h>
 
-
-// Be aware that Apple defines "typedef struct vnode *vnode_t" and
-// ZFS uses "typedef struct vnode vnode_t".
-#undef uio_t
 #undef vnode_t
 #include_next <sys/vnode.h>
 #define	vnode_t struct vnode
-#define	uio_t struct uio
-
 
 struct caller_context;
 typedef struct caller_context caller_context_t;

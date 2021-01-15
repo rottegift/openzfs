@@ -356,7 +356,7 @@ int spl_vn_rdwr(enum uio_rw rw,	struct spl_fileproc *sfp,
     caddr_t base, ssize_t len, offset_t offset, enum uio_seg seg,
     int ioflag, rlim64_t ulimit, cred_t *cr, ssize_t *residp)
 {
-	uio_t *auio;
+	struct uio *auio;
 	int spacetype;
 	int error = 0;
 	vfs_context_t vctx;
@@ -392,7 +392,7 @@ int zfs_vn_rdwr(enum uio_rw rw, struct vnode *vp, caddr_t base, ssize_t len,
     offset_t offset, enum uio_seg seg, int ioflag, rlim64_t ulimit,
     cred_t *cr, ssize_t *residp)
 {
-	uio_t *auio;
+	struct uio *auio;
 	int spacetype;
 	int error = 0;
 	vfs_context_t vctx;

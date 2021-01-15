@@ -584,7 +584,7 @@ zfs_access_native_mode(struct vnode *vp, int *mode, cred_t *cr,
 	int flag = 0; // FIXME
 
 	if (accmode != 0)
-		error = zfs_access(vp, accmode, flag, cr);
+		error = zfs_access(VTOZ(vp), accmode, flag, cr);
 
 	*mode &= ~(accmode);
 
@@ -1556,7 +1556,9 @@ getfinderinfo(znode_t *zp, cred_t *cr, finderinfo_t *fip)
 	if ((error = zfs_dirlook(xdzp, name, &xzp, 0, NULL, &cn))) {
 		goto out;
 	}
-	error = dmu_read_uio(zp->z_zfsvfs->z_os, xzp->z_id, auio,
+	zfs_uio_t uio;
+	zfs_uio_init(&uio, auio);
+	error = dmu_read_uio(zp->z_zfsvfs->z_os, xzp->z_id, &uio,
 	    sizeof (finderinfo_t));
 out:
 	if (name)
@@ -2212,7 +2214,7 @@ zfs_vfs_uuid_gen(const char *osname, uuid_t uuid)
 }
 
 int
-uio_prefaultpages(ssize_t n, struct uio *uio)
+zfs_uio_prefaultpages(ssize_t n, zfs_uio_t *uio)
 {
 	return (0);
 }

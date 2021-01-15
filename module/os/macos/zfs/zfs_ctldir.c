@@ -504,7 +504,7 @@ static int zfsctl_dir_emit(const char *name, uint64_t id, enum vtype type,
 	}
 
 	/* Copyout this entry */
-	error = uiomove(buf, (long)reclen, UIO_READ, uio);
+	error = uiomove(buf, (long)reclen, uio);
 
 	kmem_free(buf, reclen);
 	return (error);

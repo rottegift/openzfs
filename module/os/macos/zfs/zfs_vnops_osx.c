@@ -1098,9 +1098,11 @@ zfs_vnop_read(struct vnop_read_args *ap)
 	/* uint64_t resid; */
 //	DECLARE_CRED_AND_CONTEXT(ap);
 	DECLARE_CRED(ap);
+	zfs_uio_t uio;
+	zfs_uio_init(&uio, ap->a_uio);
 
 	/* resid = uio_resid(ap->a_uio); */
-	error = zfs_read(VTOZ(ap->a_vp), ap->a_uio, ioflag, cr);
+	error = zfs_read(VTOZ(ap->a_vp), &uio, ioflag, cr);
 
 	if (error) dprintf("vnop_read %d\n", error);
 	return (error);
@@ -1120,11 +1122,13 @@ zfs_vnop_write(struct vnop_write_args *ap)
 	int ioflag = zfs_ioflags(ap->a_ioflag);
 	int error;
 	DECLARE_CRED(ap);
+	zfs_uio_t uio;
+	zfs_uio_init(&uio, ap->a_uio);
 
 	// dprintf("zfs_vnop_write(vp %p, offset 0x%llx size 0x%llx\n",
 	//    ap->a_vp, uio_offset(ap->a_uio), uio_resid(ap->a_uio));
 
-	error = zfs_write(VTOZ(ap->a_vp), ap->a_uio, ioflag, cr);
+	error = zfs_write(VTOZ(ap->a_vp), &uio, ioflag, cr);
 
 	/*
 	 * Mac OS X: pageout requires that the UBC file size be current.
@@ -1670,6 +1674,8 @@ zfs_vnop_readdir(struct vnop_readdir_args *ap)
 {
 	int error;
 	DECLARE_CRED(ap);
+	zfs_uio_t uio;
+	zfs_uio_init(&uio, ap->a_uio);
 
 	dprintf("+readdir: %p\n", ap->a_vp);
 
@@ -1687,7 +1693,7 @@ zfs_vnop_readdir(struct vnop_readdir_args *ap)
 	 */
 	*ap->a_numdirent = 0;
 
-	error = zfs_readdir(ap->a_vp, ap->a_uio, cr, ap->a_eofflag, ap->a_flags,
+	error = zfs_readdir(ap->a_vp, &uio, cr, ap->a_eofflag, ap->a_flags,
 	    ap->a_numdirent);
 
 	/* .zfs dirs can be completely empty */
@@ -2102,6 +2108,8 @@ zfs_vnop_readlink(struct vnop_readlink_args *ap)
 {
 //	DECLARE_CRED_AND_CONTEXT(ap);
 	DECLARE_CRED(ap);
+	zfs_uio_t uio;
+	zfs_uio_init(&uio, ap->a_uio);
 
 	dprintf("vnop_readlink\n");
 
@@ -2109,7 +2117,7 @@ zfs_vnop_readlink(struct vnop_readlink_args *ap)
 	 * extern int zfs_readlink(struct vnode *vp, uio_t *uio, cred_t *cr,
 	 *     caller_context_t *ct);
 	 */
-	return (zfs_readlink(ap->a_vp, ap->a_uio, cr));
+	return (zfs_readlink(ap->a_vp, &uio, cr));
 }
 
 int
@@ -3430,7 +3438,7 @@ zfs_vnop_getxattr(struct vnop_getxattr_args *ap)
 			}
 
 			if (size > 0)
-				error = uiomove((const char *)value, size, 0,
+				error = uiomove((const char *)value, size,
 				    uio);
 
 			kmem_free(value, resid);
@@ -3500,7 +3508,7 @@ zfs_vnop_getxattr(struct vnop_getxattr_args *ap)
 
 				/* Copy out the data we just modified */
 				error = uiomove((const char *)&finderinfo,
-				    sizeof (finderinfo), 0, uio);
+				    sizeof (finderinfo), uio);
 
 			} /* Not empty */
 		} /* Correct size */
@@ -3522,8 +3530,11 @@ zfs_vnop_getxattr(struct vnop_getxattr_args *ap)
 
 	} else {
 
+		zfs_uio_t zuio;
+		zfs_uio_init(&zuio, ap->a_uio);
+
 		/* Read xattr */
-		error = zfs_read(xzp, uio, 0, cr);
+		error = zfs_read(xzp, &zuio, 0, cr);
 
 		if (ap->a_size && uio) {
 			*ap->a_size = (size_t)resid - uio_resid(ap->a_uio);
@@ -3702,7 +3713,7 @@ zfs_vnop_setxattr(struct vnop_setxattr_args *ap)
 
 		/* Copy in the finderinfo to our space */
 		error = uiomove((const char *)&finderinfo,
-			sizeof (finderinfo), 0, uio);
+			sizeof (finderinfo), uio);
 		if (error)
 			goto out;
 
@@ -3724,14 +3735,16 @@ zfs_vnop_setxattr(struct vnop_setxattr_args *ap)
 		}
 
 		/* Build a new uio to call zfs_write() to make it go in txg */
-		uio_t *luio = uio_create(1, 0, UIO_SYSSPACE, UIO_WRITE);
+		struct uio *luio = uio_create(1, 0, UIO_SYSSPACE, UIO_WRITE);
 		if (luio == NULL) {
 			error = ENOMEM;
 			goto out;
 		}
 		uio_addiov(luio, (user_addr_t)&finderinfo, sizeof (finderinfo));
 
-		error = zfs_write(VTOZ(xvp), luio, 0, cr);
+		zfs_uio_t zuio;
+		zfs_uio_init(&zuio, luio);
+		error = zfs_write(VTOZ(xvp), &zuio, 0, cr);
 
 		if (uio_resid(luio) != 0)
 			error = ERANGE;
@@ -3742,7 +3755,9 @@ zfs_vnop_setxattr(struct vnop_setxattr_args *ap)
 	} /* Finderinfo */
 
 	/* Write XATTR to disk */
-	error = zfs_write(VTOZ(xvp), uio, 0, cr);
+	zfs_uio_t zuio;
+	zfs_uio_init(&zuio, ap->a_uio);
+	error = zfs_write(VTOZ(xvp), &zuio, 0, cr);
 
 out:
 
@@ -3947,7 +3962,7 @@ zfs_vnop_listxattr(struct vnop_listxattr_args *ap)
 				dprintf("ZFS: listxattr '%s'\n",
 				    nvpair_name(nvp));
 				error = uiomove((caddr_t)nvpair_name(nvp),
-				    namelen, UIO_READ, uio);
+				    namelen, uio);
 				if (error)
 					break;
 			}
@@ -3999,8 +4014,7 @@ zfs_vnop_listxattr(struct vnop_listxattr_args *ap)
 				error = ERANGE;
 				break;
 			}
-			error = uiomove((caddr_t)nameptr, namelen, UIO_READ,
-			    uio);
+			error = uiomove((caddr_t)nameptr, namelen, uio);
 			if (error)
 				break;
 		}

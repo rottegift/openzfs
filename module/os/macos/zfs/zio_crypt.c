@@ -374,7 +374,7 @@ error:
 static int
 zio_do_crypt_uio(boolean_t encrypt, uint64_t crypt, crypto_key_t *key,
     crypto_ctx_template_t tmpl, uint8_t *ivbuf, uint_t datalen,
-    uio_t *puio, uio_t *cuio, uint8_t *authbuf, uint_t auth_len)
+    struct uio *puio, struct uio *cuio, uint8_t *authbuf, uint_t auth_len)
 {
 	int ret;
 	crypto_data_t plaindata, cipherdata;
@@ -438,15 +438,20 @@ zio_do_crypt_uio(boolean_t encrypt, uint64_t crypt, crypto_key_t *key,
 	}
 
 	/* populate the cipher and plain data structs. */
+	zfs_uio_t zpuio;
+	zfs_uio_init(&zpuio, puio);
+
 	plaindata.cd_format = CRYPTO_DATA_UIO;
 	plaindata.cd_offset = 0;
-	plaindata.cd_uio = puio;
+	plaindata.cd_uio = &zpuio;
 	plaindata.cd_miscdata = NULL;
 	plaindata.cd_length = plain_full_len;
 
+	zfs_uio_t zcuio;
+	zfs_uio_init(&zcuio, cuio);
 	cipherdata.cd_format = CRYPTO_DATA_UIO;
 	cipherdata.cd_offset = 0;
-	cipherdata.cd_uio = cuio;
+	cipherdata.cd_uio = &zcuio;
 	cipherdata.cd_miscdata = NULL;
 	cipherdata.cd_length = datalen + maclen;
 
@@ -479,7 +484,7 @@ zio_crypt_key_wrap(crypto_key_t *cwkey, zio_crypt_key_t *key, uint8_t *iv,
     uint8_t *mac, uint8_t *keydata_out, uint8_t *hmac_keydata_out)
 {
 	int ret;
-	uio_t *puio = NULL, *cuio = NULL;
+	struct uio *puio = NULL, *cuio = NULL;
 	uint64_t aad[3];
 	uint64_t crypt = key->zk_crypt;
 	uint_t enc_len, keydata_len, aad_len;
@@ -560,7 +565,7 @@ zio_crypt_key_unwrap(crypto_key_t *cwkey, uint64_t crypt, uint64_t version,
 {
 	int ret;
 	crypto_mechanism_t mech;
-	uio_t *puio = NULL, *cuio = NULL;
+	struct uio *puio = NULL, *cuio = NULL;
 	uint64_t aad[3];
 	uint_t enc_len, keydata_len, aad_len;
 
@@ -1282,7 +1287,7 @@ error:
 }
 
 static void
-zio_crypt_destroy_uio(uio_t *uio)
+zio_crypt_destroy_uio(struct uio *uio)
 {
 #ifdef _KERNEL
 	if (uio) uio_free(uio);
@@ -1373,15 +1378,15 @@ zio_crypt_do_indirect_mac_checksum_abd(boolean_t generate, abd_t *abd,
  */
 static int
 zio_crypt_init_uios_zil(boolean_t encrypt, uint8_t *plainbuf,
-    uint8_t *cipherbuf, uint_t datalen, boolean_t byteswap, uio_t **puio,
-    uio_t **cuio, uint_t *enc_len, uint8_t **authbuf, uint_t *auth_len,
+    uint8_t *cipherbuf, uint_t datalen, boolean_t byteswap, struct uio **puio,
+    struct uio **cuio, uint_t *enc_len, uint8_t **authbuf, uint_t *auth_len,
     boolean_t *no_crypt)
 {
 	int ret;
 	uint64_t txtype, lr_len;
 	uint_t nr_src, nr_dst, crypt_len;
 	uint_t aad_len = 0, nr_iovecs = 0, total_len = 0;
-	uio_t *srcuio = NULL, *dstuio = NULL;
+	struct uio *srcuio = NULL, *dstuio = NULL;
 	uint8_t *src, *dst, *slrp, *dlrp, *blkend, *aadp;
 	zil_chain_t *zilc;
 	lr_t *lr;
@@ -1567,7 +1572,7 @@ error:
 static int
 zio_crypt_init_uios_dnode(boolean_t encrypt, uint64_t version,
     uint8_t *plainbuf, uint8_t *cipherbuf, uint_t datalen, boolean_t byteswap,
-    uio_t **puio, uio_t **cuio, uint_t *enc_len, uint8_t **authbuf,
+    struct uio **puio, struct uio **cuio, uint_t *enc_len, uint8_t **authbuf,
     uint_t *auth_len, boolean_t *no_crypt)
 {
 	int ret;
@@ -1746,7 +1751,7 @@ error:
 
 static int
 zio_crypt_init_uios_normal(boolean_t encrypt, uint8_t *plainbuf,
-    uint8_t *cipherbuf, uint_t datalen, uio_t **puio, uio_t **cuio,
+    uint8_t *cipherbuf, uint_t datalen, struct uio **puio, struct uio **cuio,
     uint_t *enc_len)
 {
 	int ret = 0;
@@ -1785,7 +1790,7 @@ error:
 static int
 zio_crypt_init_uios(boolean_t encrypt, uint64_t version, dmu_object_type_t ot,
     uint8_t *plainbuf, uint8_t *cipherbuf, uint_t datalen, boolean_t byteswap,
-    uint8_t *mac, uio_t **puio, uio_t **cuio, uint_t *enc_len,
+    uint8_t *mac, struct uio **puio, struct uio **cuio, uint_t *enc_len,
     uint8_t **authbuf, uint_t *auth_len, boolean_t *no_crypt)
 {
 	int ret;
@@ -1858,7 +1863,7 @@ zio_do_crypt_data(boolean_t encrypt, zio_crypt_key_t *key,
 	 * We have to delay the allocation call uio_create() until we know
 	 * how many iovecs we want (as max).
 	 */
-	uio_t *puio = NULL, *cuio = NULL;
+	struct uio *puio = NULL, *cuio = NULL;
 	uint_t enc_len, auth_len;
 	uint8_t enc_keydata[MASTER_KEY_MAX_LEN];
 	crypto_key_t tmp_ckey, *ckey = NULL;

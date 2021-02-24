@@ -160,6 +160,8 @@ zfs_SOURCES = \
 	../../../zfs/unique.c \
 	../../../zfs/vdev.c \
 	../../../zfs/vdev_cache.c \
+	../../../zfs/vdev_draid.c \
+	../../../zfs/vdev_draid_rand.c \
 	vdev_disk.c \
 	vdev_file.c \
 	../../../zfs/vdev_indirect.c \
@@ -205,6 +207,7 @@ zfs_SOURCES = \
 	../../../zfs/zfs_onexit.c \
 	zfs_osx.cpp \
 	../../../zfs/zfs_quota.c \
+	zfs_racct.c \
 	../../../zfs/zfs_ratelimit.c \
 	../../../zfs/zfs_replay.c \
 	../../../zfs/zfs_rlock.c \

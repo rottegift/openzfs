@@ -124,15 +124,22 @@ struct sysctl_oid 		*e_sysctl = 0;
 #define	SBUF_HASROOM(s)		((s)->s_len < (s)->s_size - 1)
 #define	SBUF_FREESPACE(s)	((s)->s_size - (s)->s_len - 1)
 #define	SBUF_CANEXTEND(s)	((s)->s_flags & SBUF_AUTOEXTEND)
+#define	SBUF_ISFINISHED(s)	((s)->s_flags & SBUF_FINISHED)
 
 #define	SBUF_MINEXTENDSIZE	16	/* Should be power of 2. */
 #define	SBUF_MAXEXTENDSIZE	PAGE_SIZE
 #define	SBUF_MAXEXTENDINCR	PAGE_SIZE
 
+#define	SBUF_INCLUDENUL 0x00000002 /* FBSD: nulterm byte is counted in len */
+#define	SBUF_NULINCLUDED(s) ((s)->s_flags & SBUF_INCLUDENUL)
+
 void
 sbuf_finish(struct sbuf *s)
 {
 	s->s_buf[s->s_len] = '\0';
+    if (SBUF_NULINCLUDED(s))
+		s->s_len++;
+
 	SBUF_CLEARFLAG(s, SBUF_OVERFLOWED);
 	SBUF_SETFLAG(s, SBUF_FINISHED);
 }
@@ -149,6 +156,9 @@ sbuf_len(struct sbuf *s)
 	if (SBUF_HASOVERFLOWED(s)) {
 		return (-1);
 	}
+	/* If finished, nulterm is already in len, else add one. */
+	if (SBUF_NULINCLUDED(s) && !SBUF_ISFINISHED(s))
+		return (s->s_len + 1);
 	return (s->s_len);
 }
 
@@ -366,6 +376,18 @@ get_kstat_parent(struct sysctl_oid_list *root, char *module_name,
 
 	container = the_class->oid_arg1;
 	return (container);
+}
+
+struct sbuf *
+sbuf_new_for_sysctl(struct sbuf *s, char *buf, int length,
+	struct sysctl_req *req)
+{
+	/* Supply a default buffer size if none given. */
+	if (buf == NULL && length == 0)
+		length = 64;
+	s = sbuf_new(s, buf, length, SBUF_FIXEDLEN | SBUF_INCLUDENUL);
+	/* sbuf_set_drain(s, sbuf_sysctl_drain, req); */
+	return (s);
 }
 
 static int

@@ -334,7 +334,7 @@ update_pages(znode_t *zp, int64_t start, int len,
  *	 the file is memory mapped.
  */
 int
-mappedread(struct znode *zp, int nbytes, uio_t *uio)
+mappedread(struct znode *zp, int nbytes, zfs_uio_t *uio)
 {
 	objset_t *os = zp->z_zfsvfs->z_os;
 	int len = nbytes;
@@ -347,7 +347,7 @@ mappedread(struct znode *zp, int nbytes, uio_t *uio)
 	int upl_page;
 	off_t off;
 
-	upl_start = uio_offset(uio);
+	upl_start = zfs_uio_offset(uio);
 	off = upl_start & PAGE_MASK;
 	upl_start &= ~PAGE_MASK;
 	upl_size = (off + nbytes + (PAGE_SIZE - 1)) & ~PAGE_MASK;
@@ -370,8 +370,8 @@ mappedread(struct znode *zp, int nbytes, uio_t *uio)
 	for (upl_page = 0; len > 0; ++upl_page) {
 		uint64_t bytes = MIN(PAGE_SIZE - off, len);
 		if (pl && upl_valid_page(pl, upl_page)) {
-			uio_setrw(uio, UIO_READ);
-			error = uiomove((caddr_t)vaddr + off, bytes, UIO_READ,
+			zfs_uio_setrw(uio, UIO_READ);
+			error = zfs_uiomove((caddr_t)vaddr + off, bytes, UIO_READ,
 			    uio);
 		} else {
 			error = dmu_read_uio(os, zp->z_id, uio, bytes);
@@ -1384,7 +1384,7 @@ out:
  */
 /* ARGSUSED */
 int
-zfs_readdir(vnode_t *vp, uio_t *uio, cred_t *cr, int *eofp,
+zfs_readdir(vnode_t *vp, zfs_uio_t *uio, cred_t *cr, int *eofp,
     int flags, int *a_numdirent)
 {
 
@@ -1427,7 +1427,7 @@ zfs_readdir(vnode_t *vp, uio_t *uio, cred_t *cr, int *eofp,
 	/*
 	 * Check for valid iov_len.
 	 */
-	if (uio_curriovlen(uio) <= 0) {
+	if (zfs_uio_iovlen(uio, 0) <= 0) {
 		error = EINVAL;
 		goto out;
 	}
@@ -1441,7 +1441,7 @@ zfs_readdir(vnode_t *vp, uio_t *uio, cred_t *cr, int *eofp,
 
 	error = 0;
 	os = zfsvfs->z_os;
-	offset = uio_offset(uio);
+	offset = zfs_uio_offset(uio);
 	prefetch = zp->z_zn_prefetch;
 
 	/*
@@ -1462,7 +1462,7 @@ zfs_readdir(vnode_t *vp, uio_t *uio, cred_t *cr, int *eofp,
 	/*
 	 * Get space to change directory entries into fs independent format.
 	 */
-	bytes_wanted = uio_curriovlen(uio);
+	bytes_wanted = zfs_uio_iovlen(uio, 0);
 	bufsize = (size_t)bytes_wanted;
 	outbuf = kmem_alloc(bufsize, KM_SLEEP);
 	bufptr = (char *)outbuf;
@@ -1674,11 +1674,11 @@ zfs_readdir(vnode_t *vp, uio_t *uio, cred_t *cr, int *eofp,
 	zp->z_zn_prefetch = B_FALSE; /* a lookup will re-enable pre-fetching */
 
 	/* All done, copy temporary buffer to userland */
-	if ((error = uiomove(outbuf, (long)outcount, UIO_READ, uio))) {
+	if ((error = zfs_uiomove(outbuf, (long)outcount, UIO_READ, uio))) {
 		/*
 		 * Reset the pointer.
 		 */
-		offset = uio_offset(uio);
+		offset = zfs_uio_offset(uio);
 	}
 
 
@@ -1691,7 +1691,7 @@ update:
 	if (error == ENOENT)
 		error = 0;
 
-	uio_setoffset(uio, offset);
+	zfs_uio_setoffset(uio, offset);
 	if (a_numdirent)
 		*a_numdirent = numdirent;
 
@@ -3480,7 +3480,7 @@ top:
  */
 /* ARGSUSED */
 int
-zfs_readlink(struct vnode *vp, uio_t *uio, cred_t *cr)
+zfs_readlink(struct vnode *vp, zfs_uio_t *uio, cred_t *cr)
 {
 	znode_t		*zp = VTOZ(vp);
 	zfsvfs_t	*zfsvfs = ITOZSB(vp);

@@ -457,7 +457,7 @@ zfsctl_vnop_lookup(struct vnop_lookup_args *ap)
 static int zfsctl_dir_emit(const char *name, uint64_t id, enum vtype type,
 	struct vnop_readdir_args *ap, uint64_t **next)
 {
-	struct uio *uio = ap->a_uio;
+	ZFS_UIO_INIT_XNU(uio, ap->a_uio);
 	boolean_t extended = (ap->a_flags & VNODE_READDIR_EXTENDED);
 	struct direntry	*eodp;	/* Extended */
 	struct dirent	*odp;	/* Standard */
@@ -471,7 +471,7 @@ static int zfsctl_dir_emit(const char *name, uint64_t id, enum vtype type,
 	namelen = strlen(name);
 	reclen = DIRENT_RECLEN(namelen, extended);
 
-	if (reclen > uio_resid(uio))
+	if (reclen > zfs_uio_resid(uio))
 		return (EINVAL);
 
 	buf = kmem_zalloc(reclen, KM_SLEEP);
@@ -483,7 +483,7 @@ static int zfsctl_dir_emit(const char *name, uint64_t id, enum vtype type,
 		 * NOTE: d_seekoff is the offset for the *next* entry -
 		 * so poke in the previous struct with this id
 		 */
-		eodp->d_seekoff = uio_offset(uio) + 1;
+		eodp->d_seekoff = zfs_uio_offset(uio) + 1;
 
 		eodp->d_ino = id;
 		eodp->d_type = type;
@@ -504,7 +504,7 @@ static int zfsctl_dir_emit(const char *name, uint64_t id, enum vtype type,
 	}
 
 	/* Copyout this entry */
-	error = uiomove(buf, (long)reclen, UIO_READ, uio);
+	error = zfs_uiomove(buf, (long)reclen, UIO_READ, uio);
 
 	kmem_free(buf, reclen);
 	return (error);
@@ -527,7 +527,7 @@ zfsctl_vnop_readdir_root(struct vnop_readdir_args *ap)
 	uint64_t *next = NULL;
 	int entries = 0;
 	uint64_t offset;
-	struct uio *uio = ap->a_uio;
+	ZFS_UIO_INIT_XNU(uio, ap->a_uio);
 	znode_t *zp = VTOZ(ap->a_vp);
 	zfsvfs_t *zfsvfs = zp->z_zfsvfs;
 
@@ -537,7 +537,7 @@ zfsctl_vnop_readdir_root(struct vnop_readdir_args *ap)
 
 	*ap->a_numdirent = 0;
 
-	offset = uio_offset(uio);
+	offset = zfs_uio_offset(uio);
 
 	while (offset < 3 && error == 0) {
 
@@ -570,10 +570,10 @@ zfsctl_vnop_readdir_root(struct vnop_readdir_args *ap)
 
 		entries++;
 		offset++;
-		uio_setoffset(uio, offset);
+		zfs_uio_setoffset(uio, offset);
 	}
 
-	uio_setoffset(uio, offset);
+	zfs_uio_setoffset(uio, offset);
 
 	/* Finished without error? Set EOF */
 	if (offset >= 3 && error == 0) {
@@ -606,7 +606,7 @@ zfsctl_vnop_readdir_snapdir(struct vnop_readdir_args *ap)
 	uint64_t *next = NULL;
 	int entries = 0;
 	uint64_t offset;
-	struct uio *uio = ap->a_uio;
+	ZFS_UIO_INIT_XNU(uio, ap->a_uio);
 	boolean_t case_conflict;
 	uint64_t id;
 	char snapname[MAXNAMELEN];
@@ -619,7 +619,7 @@ zfsctl_vnop_readdir_snapdir(struct vnop_readdir_args *ap)
 
 	*ap->a_numdirent = 0;
 
-	offset = uio_offset(uio);
+	offset = zfs_uio_offset(uio);
 
 	while (error == 0) {
 
@@ -656,10 +656,10 @@ zfsctl_vnop_readdir_snapdir(struct vnop_readdir_args *ap)
 
 		entries++;
 		offset++;
-		uio_setoffset(uio, offset);
+		zfs_uio_setoffset(uio, offset);
 	}
 
-	uio_setoffset(uio, offset);
+	zfs_uio_setoffset(uio, offset);
 
 	/* Finished without error? Set EOF */
 	if (error == ENOENT) {
@@ -695,7 +695,7 @@ zfsctl_vnop_readdir_snapdirs(struct vnop_readdir_args *ap)
 	uint64_t *next = NULL;
 	int entries = 0;
 	uint64_t offset;
-	struct uio *uio = ap->a_uio;
+	ZFS_UIO_INIT_XNU(uio, ap->a_uio);
 	znode_t *zp = VTOZ(ap->a_vp);
 	zfsvfs_t *zfsvfs = zp->z_zfsvfs;
 
@@ -703,7 +703,7 @@ zfsctl_vnop_readdir_snapdirs(struct vnop_readdir_args *ap)
 
 	*ap->a_numdirent = 0;
 
-	offset = uio_offset(uio);
+	offset = zfs_uio_offset(uio);
 
 	dprintf("%s: for id %llu: offset %llu\n", __func__,
 	    zp->z_id, offset);
@@ -733,10 +733,10 @@ zfsctl_vnop_readdir_snapdirs(struct vnop_readdir_args *ap)
 
 		entries++;
 		offset++;
-		uio_setoffset(uio, offset);
+		zfs_uio_setoffset(uio, offset);
 	}
 
-	uio_setoffset(uio, offset);
+	zfs_uio_setoffset(uio, offset);
 
 	/* Finished without error? Set EOF */
 	if (error == ENOENT) {

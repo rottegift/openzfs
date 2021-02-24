@@ -36,105 +36,6 @@
 
 #include <sys/taskq.h>
 
-
-int
-vn_open(char *pnamep, enum uio_seg seg, int filemode, int createmode,
-    struct vnode **vpp, enum create crwhy, mode_t umask)
-{
-	vfs_context_t vctx;
-	int fmode;
-	int error;
-
-	fmode = filemode;
-	if (crwhy)
-		fmode |= O_CREAT;
-	// TODO I think this should be 'fmode' instead of 'filemode'
-	vctx = vfs_context_create((vfs_context_t)0);
-	error = vnode_open(pnamep, filemode, createmode, 0, vpp, vctx);
-	(void) vfs_context_rele(vctx);
-	return (error);
-}
-
-int
-vn_openat(char *pnamep, enum uio_seg seg, int filemode, int createmode,
-    struct vnode **vpp, enum create crwhy,
-    mode_t umask, struct vnode *startvp)
-{
-	char *path;
-	int pathlen = MAXPATHLEN;
-	int error;
-
-	path = (char *)kmem_zalloc(MAXPATHLEN, KM_SLEEP);
-
-	error = vn_getpath(startvp, path, &pathlen);
-	if (error == 0) {
-		strlcat(path, pnamep, MAXPATHLEN);
-		error = vn_open(path, seg, filemode, createmode, vpp, crwhy,
-		    umask);
-	}
-
-	kmem_free(path, MAXPATHLEN);
-	return (error);
-}
-
-extern errno_t vnode_rename(const char *, const char *, int, vfs_context_t);
-
-errno_t
-vnode_rename(const char *from, const char *to, int flags, vfs_context_t vctx)
-{
-	/*
-	 * We need proper KPI changes to be able to safely update
-	 * the zpool.cache file. For now, we return EPERM.
-	 */
-	return (EPERM);
-}
-
-int
-vn_rename(char *from, char *to, enum uio_seg seg)
-{
-	vfs_context_t vctx;
-	int error;
-
-	vctx = vfs_context_create((vfs_context_t)0);
-
-	error = vnode_rename(from, to, 0, vctx);
-
-	(void) vfs_context_rele(vctx);
-
-	return (error);
-}
-
-extern errno_t vnode_remove(const char *, int, enum vtype, vfs_context_t);
-
-errno_t
-vnode_remove(const char *name, int flag, enum vtype type, vfs_context_t vctx)
-{
-	/*
-	 * Now that zed ZFS Event Daemon can handle the rename of zpool.cache
-	 * we will silence this limitation, and look in zed.d/config.sync.sh
-	 */
-	return (EPERM);
-}
-
-
-int
-vn_remove(char *fnamep, enum uio_seg seg, enum rm dirflag)
-{
-	vfs_context_t vctx;
-	enum vtype type;
-	int error;
-
-	type = dirflag == RMDIRECTORY ? VDIR : VREG;
-
-	vctx = vfs_context_create((vfs_context_t)0);
-
-	error = vnode_remove(fnamep, 0, type, vctx);
-
-	(void) vfs_context_rele(vctx);
-
-	return (error);
-}
-
 int
 VOP_SPACE(struct vnode *vp, int cmd, struct flock *fl, int flags, offset_t off,
     cred_t *cr, void *ctx)
@@ -153,19 +54,6 @@ VOP_SPACE(struct vnode *vp, int cmd, struct flock *fl, int flags, offset_t off,
 		}
 	}
 #endif
-	return (error);
-}
-
-int
-VOP_CLOSE(struct vnode *vp, int flag, int count, offset_t off,
-    void *cr, void *k)
-{
-	vfs_context_t vctx;
-	int error;
-
-	vctx = vfs_context_create((vfs_context_t)0);
-	error = vnode_close(vp, flag & FWRITE, vctx);
-	(void) vfs_context_rele(vctx);
 	return (error);
 }
 

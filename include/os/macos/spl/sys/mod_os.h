@@ -26,6 +26,8 @@
 extern "C" {
 #endif /* __cplusplus */
 
+#include <sys/sysctl.h>
+
 #define	MODULE_INIT(s)
 #define	MODULE_AUTHOR(s)
 #define	MODULE_LICENSE(s)
@@ -56,11 +58,18 @@ extern "C" {
 		fn();		\
 	}
 
-#define	ZFS_MODULE_PARAM_ARGS	void
+// XNU defines SYSCTL_HANDLER_ARGS with "()" so it no worky.
+// #define	ZFS_MODULE_PARAM_ARGS	SYSCTL_HANDLER_ARGS
+#define	ZFS_MODULE_PARAM_ARGS	\
+	struct sysctl_oid *oidp, void *arg1, int arg2, struct sysctl_req *req
 
 #define	ZFS_MODULE_PARAM(A, B, C, D, E, F)
 #define	module_param_call(a, b, c, d, e)
 #define	module_param_named(a, b, c, d)
+
+#define	ZFS_MODULE_VIRTUAL_PARAM_CALL(scope_prefix, name_prefix, name, setfunc, getfunc, perm, desc)
+
+#define	module_init_early(fn) module_init(fn)
 
 kern_return_t spl_start(kmod_info_t *ki, void *d);
 kern_return_t spl_stop(kmod_info_t *ki, void *d);

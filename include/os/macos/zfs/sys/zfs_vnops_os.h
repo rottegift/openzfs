@@ -165,12 +165,12 @@ extern int zfs_lookup(znode_t *dzp, char *nm, znode_t **zpp,
     int flags, cred_t *cr, int *direntflags, struct componentname *realpnp);
 extern int zfs_ioctl(vnode_t *vp, ulong_t com, intptr_t data, int flag,
     cred_t *cred, int *rvalp, caller_context_t *ct);
-extern int zfs_readdir(vnode_t *vp, uio_t *uio, cred_t *cr, int *eofp,
+extern int zfs_readdir(vnode_t *vp, zfs_uio_t *uio, cred_t *cr, int *eofp,
     int flags, int *a_numdirent);
 extern int zfs_fsync(znode_t *zp, int syncflag, cred_t *cr);
 extern int zfs_getattr(vnode_t *vp, vattr_t *vap, int flags,
     cred_t *cr, caller_context_t *ct);
-extern int zfs_readlink(vnode_t *vp, uio_t *uio, cred_t *cr);
+extern int zfs_readlink(vnode_t *vp, zfs_uio_t *uio, cred_t *cr);
 
 extern void   zfs_inactive(vnode_t *vp);
 

@@ -2343,7 +2343,7 @@ zfs_obj_to_stats(objset_t *osp, uint64_t obj, zfs_stat_t *sb,
 }
 
 void
-zfs_inode_update(znode_t *zp)
+zfs_znode_update_vfs(znode_t *zp)
 {
 	ubc_setsize(ZTOV(zp), zp->z_size);
 }

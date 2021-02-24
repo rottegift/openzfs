@@ -214,4 +214,10 @@ extern void kstat_named_init(kstat_named_t *, const char *, uchar_t);
 #define	kstat_set_raw_ops(k, h, d, a) __kstat_set_raw_ops(k, h, d, a)
 void kstat_named_setstr(kstat_named_t *knp, const char *src);
 
+struct sbuf;
+struct sysctl_req;
+extern void sbuf_finish(struct sbuf *s);
+extern struct sbuf *sbuf_new_for_sysctl(struct sbuf *s, char *buf,
+    int length,	struct sysctl_req *req);
+
 #endif  /* _SPL_KSTAT_H */

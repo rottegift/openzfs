@@ -1534,6 +1534,7 @@ getfinderinfo(znode_t *zp, cred_t *cr, finderinfo_t *fip)
 		goto nodata;
 	}
 
+	// Change this to internal uio ?
 	auio = uio_create(1, 0, UIO_SYSSPACE, UIO_READ);
 	if (auio == NULL) {
 		goto nodata;
@@ -1556,7 +1557,9 @@ getfinderinfo(znode_t *zp, cred_t *cr, finderinfo_t *fip)
 	if ((error = zfs_dirlook(xdzp, name, &xzp, 0, NULL, &cn))) {
 		goto out;
 	}
-	error = dmu_read_uio(zp->z_zfsvfs->z_os, xzp->z_id, auio,
+
+	ZFS_UIO_INIT_XNU(uio, auio);
+	error = dmu_read_uio(zp->z_zfsvfs->z_os, xzp->z_id, uio,
 	    sizeof (finderinfo_t));
 out:
 	if (name)

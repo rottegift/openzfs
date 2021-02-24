@@ -137,7 +137,7 @@ extern minor_t zfsdev_minor_alloc(void);
 #define	Z_ISDIR(type)	((type) == VDIR)
 
 #define	zn_has_cached_data(zp)	((zp)->z_is_mapped)
-#define	zn_rlimit_fsize(zp, uio, td)	(0)
+#define	zn_rlimit_fsize(zp, uio)	(0)
 
 /* Called on entry to each ZFS inode and vfs operation. */
 #define	ZFS_ENTER_IFERROR(zfsvfs)	\

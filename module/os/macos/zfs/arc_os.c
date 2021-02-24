@@ -850,6 +850,16 @@ arc_prune_async(int64_t adjust)
 	mutex_exit(&arc_prune_mtx);
 }
 
+void
+arc_register_hotplug(void)
+{
+}
+
+void
+arc_unregister_hotplug(void)
+{
+}
+
 #else /* KERNEL */
 
 int64_t

@@ -40,14 +40,9 @@
 #ifndef _SPL_UIO_H
 #define	_SPL_UIO_H
 
-
-// OSX defines "uio_t" as "struct uio *"
-// ZFS defines "uio_t" as "struct uio"
-#undef uio_t
 #include_next <sys/uio.h>
-#define	uio_t struct uio
-
 #include <sys/types.h>
+#include <sys/debug.h>
 
 #ifdef  __cplusplus
 extern "C" {
@@ -55,118 +50,125 @@ extern "C" {
 
 typedef struct iovec iovec_t;
 
-typedef enum uio_seg uio_seg_t;
-typedef enum uio_rw uio_rw_t;
+typedef enum uio_seg zfs_uio_seg_t;
+typedef enum uio_rw zfs_uio_rw_t;
 
-typedef struct aio_req {
-	uio_t		*aio_uio;
-	void		*aio_private;
-} aio_req_t;
+/*
+ * Hybrid uio, use OS uio for IO and communicating with XNU
+ * and internal uio for ZFS / crypto. The default mode is
+ * ZFS style, as zio_crypt.c creates uios on the stack, and
+ * they are uninitialised. However, all XNU entries will use
+ * ZFS_UIO_INIT_XNU(), so we can set uio_iov = NULL, to signify
+ * that it is a XNU uio. ZFS uio will always set uio_iov before
+ * it can use them.
+ */
+typedef struct zfs_uio {
+	/* Type A: XNU uio. */
+	struct uio		*uio_xnu;
+	/* Type B: Internal uio */
+	const struct iovec	*uio_iov;
+	int			uio_iovcnt;
+	off_t			uio_loffset;
+	zfs_uio_seg_t		uio_segflg;
+	boolean_t		uio_fault_disable;
+	uint16_t		uio_fmode;
+	uint16_t		uio_extflg;
+	ssize_t			uio_resid;
+	size_t			uio_skip;
+} zfs_uio_t;
 
-typedef enum xuio_type {
-	UIOTYPE_ASYNCIO,
-	UIOTYPE_ZEROCOPY,
-} xuio_type_t;
+#define	ZFS_UIO_INIT_XNU(U, X) \
+	zfs_uio_t _U; \
+	zfs_uio_t *U = &_U; \
+	(U)->uio_iov = NULL; \
+	(U)->uio_xnu = X;
 
-
-#define	UIOA_IOV_MAX    16
-
-typedef struct uioa_page_s {
-	int	uioa_pfncnt;
-	void	**uioa_ppp;
-	caddr_t	uioa_base;
-	size_t	uioa_len;
-} uioa_page_t;
-
-typedef struct xuio {
-	uio_t *xu_uio;
-	enum xuio_type xu_type;
-	union {
-		struct {
-			uint32_t xu_a_state;
-			ssize_t xu_a_mbytes;
-			uioa_page_t *xu_a_lcur;
-			void **xu_a_lppp;
-			void *xu_a_hwst[4];
-			uioa_page_t xu_a_locked[UIOA_IOV_MAX];
-		} xu_aio;
-
-		struct {
-			int xu_zc_rw;
-			void *xu_zc_priv;
-		} xu_zc;
-	} xu_ext;
-} xuio_t;
-
-#define	XUIO_XUZC_PRIV(xuio)	xuio->xu_ext.xu_zc.xu_zc_priv
-#define	XUIO_XUZC_RW(xuio)	xuio->xu_ext.xu_zc.xu_zc_rw
-
-#define	uio_segflg(U) \
-	(uio_isuserspace((struct uio *)(U))?UIO_USERSPACE:UIO_SYSSPACE)
-#define	uio_advance(U, N)	uio_update((struct uio *)(U), (N))
-
-static inline uint64_t
-uio_iovlen(const struct uio *u, unsigned int i)
+static inline zfs_uio_seg_t
+zfs_uio_segflg(zfs_uio_t *uio)
 {
-	user_size_t iov_len;
-	uio_getiov((struct uio *)u, i, NULL, &iov_len);
-	return (iov_len);
-}
-
-static inline void *
-uio_iovbase(const struct uio *u, unsigned int i)
-{
-	user_addr_t iov_base;
-	uio_getiov((struct uio *)u, i, &iov_base, NULL);
-	return ((void *)iov_base);
+	if (uio->uio_iov == NULL)
+		return (uio_isuserspace(uio->uio_xnu)?UIO_USERSPACE:UIO_SYSSPACE);
+	return (uio->uio_segflg);
 }
 
 static inline void
-uio_iov_at_index(uio_t *uio, unsigned int idx, void **base, uint64_t *len)
+zfs_uio_setrw(zfs_uio_t *uio, zfs_uio_rw_t inout)
 {
-	(void) uio_getiov(uio, idx, (user_addr_t *)base, len);
+	if (uio->uio_iov == NULL)
+		uio_setrw(uio->uio_xnu, inout);
 }
 
-static inline long long
-uio_index_at_offset(struct uio *uio, long long off, unsigned int *vec_idx)
-{
-	uint64_t len;
-	*vec_idx = 0;
-	while (*vec_idx < uio_iovcnt(uio) && off >=
-	    (len = uio_iovlen(uio, *vec_idx))) {
-		off -= len;
-		(*vec_idx)++;
-	}
-	return (off);
-}
-
-/*
- * same as uiomove() but doesn't modify uio structure.
- * return in cbytes how many bytes were copied.
- */
 static inline int
-uiocopy(const char *p, size_t n, enum uio_rw rw, struct uio *uio,
-    size_t *cbytes)
+zfs_uio_iovcnt(zfs_uio_t *uio)
 {
-	int result;
-	struct uio *nuio = uio_duplicate(uio);
-	unsigned long long x = uio_resid(uio);
-	if (!nuio)
-		return (ENOMEM);
-	uio_setrw(nuio, rw);
-	result = uiomove(p, n, nuio);
-	*cbytes = x-uio_resid(nuio);
-	uio_free(nuio);
-	return (result);
+	if (uio->uio_iov == NULL)
+		return (uio_iovcnt(uio->uio_xnu));
+	return (uio->uio_iovcnt);
 }
 
+static inline off_t
+zfs_uio_offset(zfs_uio_t *uio)
+{
+	if (uio->uio_iov == NULL)
+		return (uio_offset(uio->uio_xnu));
+	return (uio->uio_loffset);
+}
 
-// Apple's uiomove puts the uio_rw in uio_create
-#define	uiomove(A, B, C, D)	uiomove((A), (B), (D))
-#define	uioskip(A, B)		uio_update((A), (B))
+static inline size_t
+zfs_uio_resid(zfs_uio_t *uio)
+{
+	if (uio->uio_iov == NULL)
+		return (uio_resid(uio->uio_xnu));
+	return (uio->uio_resid);
+}
 
-extern int uio_prefaultpages(ssize_t, uio_t *);
-#define	uio_fault_disable(uio, set)
+static inline void
+zfs_uio_setoffset(zfs_uio_t *uio, off_t off)
+{
+	if (uio->uio_iov == NULL) {
+		uio_setoffset(uio->uio_xnu, off);
+		return;
+	}
+	uio->uio_loffset = off;
+}
+
+static inline void
+zfs_uio_advance(zfs_uio_t *uio, size_t size)
+{
+	if (uio->uio_iov == NULL) {
+		uio_update(uio->uio_xnu, size);
+	} else {
+		uio->uio_resid -= size;
+		uio->uio_loffset += size;
+	}
+}
+
+/* zfs_uio_iovlen(uio, 0) = uio_curriovlen() */
+static inline uint64_t
+zfs_uio_iovlen(zfs_uio_t *uio, unsigned int idx)
+{
+	if (uio->uio_iov == NULL) {
+		user_size_t iov_len;
+		uio_getiov(uio->uio_xnu, idx, NULL, &iov_len);
+		return (iov_len);
+	}
+	return (uio->uio_iov[idx].iov_len);
+}
+
+static inline void *
+zfs_uio_iovbase(zfs_uio_t *uio, unsigned int idx)
+{
+	if (uio->uio_iov == NULL) {
+		user_addr_t iov_base;
+		uio_getiov(uio->uio_xnu, idx, &iov_base, NULL);
+		return ((void *)iov_base);
+	}
+	return (uio->uio_iov[(idx)].iov_base);
+}
+
+extern int zfs_uio_prefaultpages(ssize_t, zfs_uio_t *);
+#define	zfs_uio_fault_disable(uio, set)
+#define	zfs_uio_fault_move(p, n, rw, u) zfs_uiomove((p), (n), (rw), (u))
 
 #ifdef  __cplusplus
 }

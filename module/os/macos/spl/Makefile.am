@@ -55,6 +55,7 @@ libspl_la_SOURCES = 	\
 	spl-thread.c \
 	spl-time.c \
 	spl-tsd.c \
+	spl-uio.c \
 	spl-vmem.c \
 	spl-vnode.c \
 	spl-xdr.c

@@ -1299,7 +1299,7 @@ static void
 zio_crypt_destroy_uio(zfs_uio_t *uio)
 {
 	if (uio->uio_iov)
-		kmem_free(uio->uio_iov, uio->uio_iovcnt * sizeof (iovec_t));
+		kmem_free((void *)uio->uio_iov, uio->uio_iovcnt * sizeof (iovec_t));
 }
 
 /*

@@ -68,12 +68,17 @@ zfs_uiomove_iov(void *p, size_t n, zfs_uio_rw_t rw, zfs_uio_t *uio)
 int
 zfs_uiomove(const char *p, size_t n, enum uio_rw rw, zfs_uio_t *uio)
 {
+	int result;
+
 	if (uio->uio_iov == NULL) {
 		uio_setrw(uio->uio_xnu, rw);
-		return (uiomove(p, n, uio->uio_xnu));
+		result = uiomove(p, n, uio->uio_xnu);
+		VERIFY0(result);
+		return SET_ERROR(result);
 	}
 
-	return (zfs_uiomove_iov((void *)p, n, rw, uio));
+	result = zfs_uiomove_iov((void *)p, n, rw, uio);
+		return SET_ERROR(result);
 }
 
 /*

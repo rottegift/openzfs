@@ -3427,6 +3427,9 @@ zfs_vnop_getxattr(struct vnop_getxattr_args *ap)
 				/* Must be 32 bytes */
 				if (resid != sizeof (emptyfinfo) ||
 					size != sizeof (emptyfinfo)) {
+					printf("zfs: xattr ERANGE: %s:%d resid %llu sizeof %lu\n",
+					    __func__, __LINE__,
+					    resid, sizeof(emptyfinfo));
 					error = ERANGE;
 					kmem_free(value, resid);
 					goto out;
@@ -3485,6 +3488,9 @@ zfs_vnop_getxattr(struct vnop_getxattr_args *ap)
 		/* Read the attribute data. */
 		/* FinderInfo is 32 bytes */
 		if ((user_size_t)zfs_uio_resid(uio) < 32) {
+			printf("zfs: xattr ERANGE: %s:%d resid uio_resid %lu\n",
+			    __func__, __LINE__,
+			    zfs_uio_resid(uio));
 			error = ERANGE;
 			goto out;
 		}
@@ -3497,6 +3503,8 @@ zfs_vnop_getxattr(struct vnop_getxattr_args *ap)
 			sizeof (finderinfo), 0ULL, &local_resid);
 
 		if (local_resid != 0) {
+			printf("zfs: xattr ERANGE: %s:%d local_resid %ld\n",
+			    __func__, __LINE__, local_resid);
 			error = ERANGE;
 		} else {
 
@@ -3663,6 +3671,9 @@ zfs_vnop_setxattr(struct vnop_setxattr_args *ap)
 
 			/* Must be 32 bytes */
 			if (bytes != sizeof (emptyfinfo)) {
+				printf("zfs: xattr ERANGE: %s:%d bytes %lu sizeof %lu\n",
+				    __func__, __LINE__,
+				    bytes, sizeof(emptyfinfo));
 				error = ERANGE;
 				rw_exit(&zp->z_xattr_lock);
 				kmem_free(value, size);
@@ -3709,6 +3720,8 @@ zfs_vnop_setxattr(struct vnop_setxattr_args *ap)
 		/* Read the attribute data. */
 		/* FinderInfo is 32 bytes */
 		if ((user_size_t)zfs_uio_resid(uio) < 32) {
+			printf("zfs: xattr ERANGE: %s:%d resid(uio) %lu\n",
+			    __func__, __LINE__, zfs_uio_resid(uio));
 			error = ERANGE;
 			goto out;
 		}
@@ -3747,8 +3760,11 @@ zfs_vnop_setxattr(struct vnop_setxattr_args *ap)
 
 		error = zfs_write(VTOZ(xvp), tmpuio, 0, cr);
 
-		if (uio_resid(luio) != 0)
+		if (uio_resid(luio) != 0) {
+			printf("zfs: xattr ERANGE: %s:%d nonzero resid %lld\n",
+			    __func__, __LINE__, uio_resid(luio));
 			error = ERANGE;
+		}
 
 		uio_free(luio);
 
@@ -3955,6 +3971,9 @@ zfs_vnop_listxattr(struct vnop_listxattr_args *ap)
 				size += namelen;
 			} else {
 				if (namelen > zfs_uio_resid(uio)) {
+					printf("zfs: xattr ERANGE: %s:%d namelen %lu uio_resid %lu\n",
+					    __func__, __LINE__,
+					    namelen, zfs_uio_resid(uio));
 					error = ERANGE;
 					break;
 				}
@@ -4010,6 +4029,9 @@ zfs_vnop_listxattr(struct vnop_listxattr_args *ap)
 			size += namelen;
 		} else {
 			if (namelen > zfs_uio_resid(uio)) {
+				printf("zfs: xattr ERANGE: %s:%d namelen %lu uio_resid %lu\n",
+				    __func__, __LINE__,
+				    namelen, zfs_uio_resid(uio));
 				error = ERANGE;
 				break;
 			}

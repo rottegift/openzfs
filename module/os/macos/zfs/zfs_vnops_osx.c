@@ -3427,10 +3427,14 @@ zfs_vnop_getxattr(struct vnop_getxattr_args *ap)
 				/* Must be 32 bytes */
 				if (resid != sizeof (emptyfinfo) ||
 					size != sizeof (emptyfinfo)) {
-					printf("zfs: xattr ERANGE: %s:%d resid %llu size %d sizeof %lu\n",
-					    __func__, __LINE__,
-					    resid, size, sizeof(emptyfinfo));
-					error = ERANGE;
+					if (size != -ENOENT)  {
+						printf("zfs: xattr ERANGE: %s:%d resid %llu size %d sizeof %lu\n",
+						    __func__, __LINE__,
+						    resid, size, sizeof(emptyfinfo));
+						error = ERANGE;
+					} else {
+						error = ENOENT;
+					}
 					kmem_free(value, resid);
 					goto out;
 				}
@@ -3971,8 +3975,8 @@ zfs_vnop_listxattr(struct vnop_listxattr_args *ap)
 				size += namelen;
 			} else {
 				if (namelen > zfs_uio_resid(uio)) {
-					printf("zfs: xattr ERANGE: %s:%d namelen %lu uio_resid %lu"
-					    "name: %s\n",
+					printf("zfs: xattr ERANGE: %s:%d namelen=%lu uio_resid=%lu"
+					    " name: %s\n",
 					    __func__, __LINE__,
 					    namelen, zfs_uio_resid(uio),
 					    nvpair_name(nvp));

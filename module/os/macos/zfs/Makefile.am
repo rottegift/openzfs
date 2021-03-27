@@ -34,7 +34,6 @@ zfs_CFLAGS =
 zfs_CXXFLAGS =
 
 zfs_LDFLAGS = \
-	-arch arm64e \
 	-Xlinker \
 	-kext \
 	-nostdlib \

@@ -33,8 +33,11 @@ extern int cpu_number(void);
 uint32_t
 getcpuid()
 {
-	// return ((uint32_t)cpu_number());
+#ifndef __arm64__
+	return ((uint32_t)cpu_number());
+#else
 	return (0);
+#endif
 }
 
 uint64_t

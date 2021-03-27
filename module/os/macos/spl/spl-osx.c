@@ -57,6 +57,22 @@ extern uint64_t		segkmem_total_mem_allocated;
 
 extern char hostname[MAXHOSTNAMELEN];
 
+#ifdef __arm64__
+
+/* Currently lua's setjmp does not work on arm64 */
+
+void
+longjmp(void *env, int val)
+{
+}
+
+int
+setjmp(void *env)
+{
+	return (0);
+}
+#endif
+
 utsname_t *
 utsname(void)
 {

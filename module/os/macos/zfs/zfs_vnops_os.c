@@ -1080,7 +1080,7 @@ zfs_mkdir(znode_t *dzp, char *dirname, vattr_t *vap, znode_t **zpp,
 	boolean_t	fuid_dirtied;
 	boolean_t	waited = B_FALSE;
 
-	ASSERT(S_ISDIR(vap->va_mode));
+	ASSERT(vap->va_type == VDIR);
 
 	/*
 	 * If we have an ephemeral id, ACL, or XVATTR then
@@ -3212,7 +3212,7 @@ zfs_symlink(znode_t *dzp, char *name, vattr_t *vap, char *link,
 	uint64_t	txtype = TX_SYMLINK;
 	boolean_t	waited = B_FALSE;
 
-	ASSERT(S_ISLNK(vap->va_mode));
+	ASSERT(vap->va_type == VLNK);
 
 	if (name == NULL)
 		return (SET_ERROR(EINVAL));

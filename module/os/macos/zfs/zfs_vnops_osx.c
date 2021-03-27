@@ -3492,11 +3492,16 @@ zfs_vnop_getxattr(struct vnop_getxattr_args *ap)
 		/* Read the attribute data. */
 		/* FinderInfo is 32 bytes */
 		if ((user_size_t)zfs_uio_resid(uio) < 32) {
-			printf("zfs: xattr ERANGE: %s:%d resid uio_resid %lu\n",
-			    __func__, __LINE__,
-			    zfs_uio_resid(uio));
-			error = ERANGE;
-			goto out;
+			if ((user_size_t)zfs_uio_resid(uio) == 0) {
+				error=ENOENT;
+				goto out;
+			} else {
+				printf("zfs: xattr ERANGE: %s:%d resid uio_resid %lu\n",
+				    __func__, __LINE__,
+				    zfs_uio_resid(uio));
+				error = ERANGE;
+				goto out;
+			}
 		}
 
 		/* Use the convenience wrappers to read to SYSSPACE */
@@ -4035,7 +4040,7 @@ zfs_vnop_listxattr(struct vnop_listxattr_args *ap)
 			size += namelen;
 		} else {
 			if (namelen > zfs_uio_resid(uio)) {
-				printf("zfs: xattr ERANGE: %s:%d namelen %lu uio_resid %lu\n",
+				printf("zfs: xattr ERANGE: %s:%d namelen=%lu uio_resid=%lu\n",
 				    __func__, __LINE__,
 				    namelen, zfs_uio_resid(uio));
 				error = ERANGE;

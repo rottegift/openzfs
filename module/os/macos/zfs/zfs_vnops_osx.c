@@ -3980,11 +3980,17 @@ zfs_vnop_listxattr(struct vnop_listxattr_args *ap)
 				size += namelen;
 			} else {
 				if (namelen > zfs_uio_resid(uio)) {
-					printf("zfs: xattr ERANGE: %s:%d namelen=%lu uio_resid=%lu"
-					    " name: %s\n",
-					    __func__, __LINE__,
-					    namelen, zfs_uio_resid(uio),
-					    nvpair_name(nvp));
+					if (zfs_uio_resid(uio) != 1) {
+						/* we are often called with 1 for
+						 * com.apple.FinderInfo, so only
+						 * printf when non-1
+						 */
+						printf("zfs: xattr ERANGE: %s:%d namelen=%lu uio_resid=%lu"
+						    " name: %s\n",
+						    __func__, __LINE__,
+						    namelen, zfs_uio_resid(uio),
+						    nvpair_name(nvp));
+					}
 					error = ERANGE;
 					break;
 				}
@@ -4040,9 +4046,15 @@ zfs_vnop_listxattr(struct vnop_listxattr_args *ap)
 			size += namelen;
 		} else {
 			if (namelen > zfs_uio_resid(uio)) {
-				printf("zfs: xattr ERANGE: %s:%d namelen=%lu uio_resid=%lu\n",
-				    __func__, __LINE__,
-				    namelen, zfs_uio_resid(uio));
+				/* we are often called with resid 1, which
+				 * may just be an existence check; only printf
+				 * in other cases
+				 */
+				if (zfs_uio_resid(uio) != 1) {
+					printf("zfs: xattr ERANGE: %s:%d namelen=%lu uio_resid=%lu\n",
+					    __func__, __LINE__,
+					    namelen, zfs_uio_resid(uio));
+				}
 				error = ERANGE;
 				break;
 			}

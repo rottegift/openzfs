@@ -2485,11 +2485,13 @@ xnu_alloc_throttled_bail(uint64_t now_ticks, vmem_t *calling_vmp,
 }
 
 static void *
-xnu_alloc_throttled(vmem_t *bvmp, size_t *azsize, size_t size, int vmflag)
+xnu_alloc_throttled(vmem_t *bvmp, size_t *asize, size_t align, int vmflag)
 {
 	// the caller is one of the bucket arenas.
 	// null_vmp will be spl_default_arena_parent, which is
 	// just a placeholder.
+
+	size_t size = *asize;
 
 	uint64_t now = zfs_lbolt();
 	const uint64_t entry_now = now;
@@ -3245,10 +3247,10 @@ spl_set_bucket_tunable_small_span(uint64_t size)
 }
 
 static void *
-spl_vmem_default_alloc(vmem_t *vmp, size_t *asize, size_t size, int vmflags)
+spl_vmem_default_alloc(vmem_t *vmp, size_t *asize, size_t align, int vmflags)
 {
 	extern void *osif_malloc(uint64_t);
-	return (osif_malloc(size));
+	return (osif_malloc(*asize));
 }
 
 static void
@@ -3320,7 +3322,7 @@ vmem_init(const char *heap_name,
 	    initial_default_block, 16ULL*1024ULL*1024ULL,
 	    heap_quantum,
 	    spl_vmem_default_alloc, spl_vmem_default_free,
-	    spl_default_arena_parent, 16ULL*1024ULL*1024ULL,
+	    spl_default_arena_parent, 0,
 	    VMC_XALIGN |
 	    VM_SLEEP | VMC_NO_QCACHE);
 
@@ -3444,7 +3446,7 @@ vmem_init(const char *heap_name,
 		const int bucket_number = i - VMEM_BUCKET_LOWBIT;
 		vmem_t *b = vmem_xcreate(buf, NULL, 0, heap_quantum,
 		    xnu_alloc_throttled, xnu_free_throttled,
-		    spl_default_arena_parent, minimum_allocsize,
+		    spl_default_arena_parent, 0,
 		    VMC_XALIGN |
 		    VM_SLEEP | VMC_NO_QCACHE | VMC_TIMEFREE);
 		VERIFY(b != NULL);
@@ -3464,7 +3466,7 @@ vmem_init(const char *heap_name,
 	spl_heap_arena = vmem_create("bucket_heap", // id 15
 	    NULL, 0, heap_quantum,
 	    vmem_bucket_alloc, vmem_bucket_free, spl_default_arena_parent, 0,
-	    VM_SLEEP | VMC_TIMEFREE | VMC_OLDFIRST);
+	    VMC_POPULATOR | VM_SLEEP | VMC_TIMEFREE | VMC_OLDFIRST);
 
 	VERIFY(spl_heap_arena != NULL);
 

@@ -1526,11 +1526,11 @@ do_alloc:
 			vmp->vm_nsegfree -= resv;	/* reserve our segs */
 			mutex_exit(&vmp->vm_lock);
 			if (vmp->vm_cflags & VMC_XALLOC) {
-				// size_t oasize = asize;
+				size_t oasize = asize;
 				vaddr = ((vmem_ximport_t *)
 				    vmp->vm_source_alloc)(vmp->vm_source,
 				    &asize, align, vmflag & VM_KMFLAGS);
-				// ASSERT(asize >= oasize);
+				ASSERT(asize >= oasize);
 				ASSERT(P2PHASE(asize,
 				    vmp->vm_source->vm_quantum) == 0);
 				ASSERT(!(vmp->vm_cflags & VMC_XALIGN) ||
@@ -2485,7 +2485,7 @@ xnu_alloc_throttled_bail(uint64_t now_ticks, vmem_t *calling_vmp,
 }
 
 static void *
-xnu_alloc_throttled(vmem_t *bvmp, size_t size, int vmflag)
+xnu_alloc_throttled(vmem_t *bvmp, size_t *azsize, size_t size, int vmflag)
 {
 	// the caller is one of the bucket arenas.
 	// null_vmp will be spl_default_arena_parent, which is
@@ -3245,7 +3245,7 @@ spl_set_bucket_tunable_small_span(uint64_t size)
 }
 
 static void *
-spl_vmem_default_alloc(vmem_t *vmp, size_t size, int vmflags)
+spl_vmem_default_alloc(vmem_t *vmp, size_t *asize, size_t size, int vmflags)
 {
 	extern void *osif_malloc(uint64_t);
 	return (osif_malloc(size));
@@ -3316,10 +3316,12 @@ vmem_init(const char *heap_name,
 	// parent of the vmem_metadata arena.   It will typically do only 2
 	// or 3 parent_alloc calls (to spl_vmem_default_alloc) in total.
 
-	spl_default_arena = vmem_create("spl_default_arena", // id 1
+	spl_default_arena = vmem_xcreate("spl_default_arena", // id 1
 	    initial_default_block, 16ULL*1024ULL*1024ULL,
-	    heap_quantum, spl_vmem_default_alloc, spl_vmem_default_free,
+	    heap_quantum,
+	    spl_vmem_default_alloc, spl_vmem_default_free,
 	    spl_default_arena_parent, 16ULL*1024ULL*1024ULL,
+	    VMC_XALIGN |
 	    VM_SLEEP | VMC_POPULATOR | VMC_NO_QCACHE);
 
 	VERIFY(spl_default_arena != NULL);
@@ -3440,9 +3442,10 @@ vmem_init(const char *heap_name,
 		dprintf("SPL: %s setting bucket %d (%d) to size %llu\n",
 		    __func__, i, (int)(1 << i), (uint64_t)minimum_allocsize);
 		const int bucket_number = i - VMEM_BUCKET_LOWBIT;
-		vmem_t *b = vmem_create(buf, NULL, 0, heap_quantum,
+		vmem_t *b = vmem_xcreate(buf, NULL, 0, heap_quantum,
 		    xnu_alloc_throttled, xnu_free_throttled,
 		    spl_default_arena_parent, minimum_allocsize,
+		    VMC_XALIGN |
 		    VM_SLEEP | VMC_POPULATOR | VMC_NO_QCACHE | VMC_TIMEFREE);
 		VERIFY(b != NULL);
 		b->vm_min_import = minimum_allocsize;

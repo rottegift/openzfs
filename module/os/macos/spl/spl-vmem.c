@@ -3322,7 +3322,7 @@ vmem_init(const char *heap_name,
 	    spl_vmem_default_alloc, spl_vmem_default_free,
 	    spl_default_arena_parent, 16ULL*1024ULL*1024ULL,
 	    VMC_XALIGN |
-	    VM_SLEEP | VMC_POPULATOR | VMC_NO_QCACHE);
+	    VM_SLEEP | VMC_NO_QCACHE);
 
 	VERIFY(spl_default_arena != NULL);
 
@@ -3446,7 +3446,7 @@ vmem_init(const char *heap_name,
 		    xnu_alloc_throttled, xnu_free_throttled,
 		    spl_default_arena_parent, minimum_allocsize,
 		    VMC_XALIGN |
-		    VM_SLEEP | VMC_POPULATOR | VMC_NO_QCACHE | VMC_TIMEFREE);
+		    VM_SLEEP | VMC_NO_QCACHE | VMC_TIMEFREE);
 		VERIFY(b != NULL);
 		b->vm_min_import = minimum_allocsize;
 		b->vm_source = b;

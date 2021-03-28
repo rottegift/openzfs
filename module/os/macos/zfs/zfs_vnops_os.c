@@ -3085,9 +3085,11 @@ top:
 			if (tdzp->z_pflags & ZFS_PROJINHERIT)
 				szp->z_pflags |= ZFS_PROJINHERIT;
 
-			error = sa_update(szp->z_sa_hdl, SA_ZPL_FLAGS(zfsvfs),
-			    (void *)&szp->z_pflags, sizeof (uint64_t), tx);
-			ASSERT0(error);
+			sa_bulk_attr_t bulk[2];
+			int count = 0;
+
+			SA_ADD_BULK_ATTR(bulk, count, SA_ZPL_FLAGS(zfsvfs),
+			    NULL, (void *)&szp->z_pflags, sizeof (uint64_t));
 
 			/*
 			 * If we moved an entry into a different directory
@@ -3095,15 +3097,21 @@ top:
 			 * (ADDTIME) property for FinderInfo. We are already
 			 * inside error == 0 conditional
 			 */
+
 			if ((sdzp != tdzp) &&
 			    zfsvfs->z_use_sa == B_TRUE) {
 				timestruc_t now;
 				gethrestime(&now);
 				ZFS_TIME_ENCODE(&now, addtime);
-				error = sa_update(szp->z_sa_hdl,
-				    SA_ZPL_ADDTIME(zfsvfs), (void *)&addtime,
-				    sizeof (addtime), tx);
+				SA_ADD_BULK_ATTR(bulk, count,
+				    SA_ZPL_ADDTIME(zfsvfs),
+				    NULL,
+				    (void *)&addtime,
+				    sizeof (addtime));
 			}
+
+			error = sa_bulk_update(szp->z_sa_hdl, bulk, count, tx);
+			ASSERT0(error);
 
 			error = zfs_link_destroy(sdl, szp, tx, ZRENAMING, NULL);
 			if (error == 0) {

@@ -118,6 +118,7 @@ void *IOMallocAligned(vm_size_t size, vm_offset_t alignment);
  * Free memory
  */
 void IOFree(void *address, vm_size_t size);
+void IOFreeAligned(void *address, vm_size_t size);
 
 #endif /* _KERNEL */
 
@@ -149,22 +150,17 @@ uint64_t stat_osif_malloc_bytes = 0;
 uint64_t stat_osif_free_bytes = 0;
 #endif
 
-void *
-osif_malloc(uint64_t size)
+/* align small allocations on PAGESIZE
+ * and larger ones on the enclosing power of two
+ * but drop to PAGESIZE for huge allocations
+ */
+
+static uint64_t
+osif_natural_align(uint64_t size)
 {
-#ifdef _KERNEL
-	// vm_offset_t tr = NULL;
-	void *tr = NULL;
-	kern_return_t kr = -1;
-
-	// kern_return_t kr = kmem_alloc(kernel_map, &tr, size);
-	// tr = IOMalloc(size);
-
-	/* align small allocations on PAGESIZE
-	 * and larger ones on the enclosing power of two
-	 * but drop to PAGESIZE for huge allocations
-	 */
 	uint64_t align = PAGESIZE;
+
+	ASSERT3U(size, <=, UINT32_MAX);
 	if (size > PAGESIZE && !ISP2(size) && size < UINT32_MAX) {
 		uint64_t v = size;
 		v--;
@@ -178,8 +174,25 @@ osif_malloc(uint64_t size)
 	} else if (size > PAGESIZE && ISP2(size)) {
 		align = size;
 	}
+	ASSERT3U(align, >=, PAGESIZE);
+	return(align);
+}
 
-	tr = IOMallocAligned(size, MAX(PAGESIZE, align));
+void *
+osif_malloc(uint64_t size)
+{
+#ifdef _KERNEL
+	// vm_offset_t tr = NULL;
+	void *tr = NULL;
+	kern_return_t kr = -1;
+
+	// kern_return_t kr = kmem_alloc(kernel_map, &tr, size);
+	// tr = IOMalloc(size);
+
+	uint64_t align = osif_natural_align(size);
+
+	tr = IOMallocAligned(size, align);
+	ASSERT3P(tr, !=, NULL);
 	if (tr != NULL)
 		kr = KERN_SUCCESS;
 
@@ -194,7 +207,8 @@ osif_malloc(uint64_t size)
 		return (NULL);
 	}
 #else
-	return (malloc(size));
+	size_t alignment = osif_natural_align(size);
+	return (aligned_alloc(alignment, size));
 #endif
 }
 
@@ -203,7 +217,8 @@ osif_free(void *buf, uint64_t size)
 {
 #ifdef _KERNEL
 	// kmem_free(kernel_map, buf, size);
-	IOFree(buf, size);
+	ASSERT(ISP2(size));
+	IOFreeAligned(buf, size);
 	atomic_inc_64(&stat_osif_free);
 	atomic_sub_64(&segkmem_total_mem_allocated, size);
 	atomic_add_64(&stat_osif_free_bytes, size);

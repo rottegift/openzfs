@@ -193,7 +193,13 @@ osif_malloc(uint64_t size)
 
 	uint64_t align = osif_natural_align(size);
 
-	VERIFY(ISP2(size));
+#ifdef DEBUG
+	if (!ISP2(size)) {
+		printf("%s:%d: !ISP2(size) size=%llu (%llx), align=%llu (%llx)\n",
+		    __func__, __LINE__, size, size, align, align);
+	}
+#endif
+
 	tr = IOMallocAligned(size, align);
 	VERIFY3P(tr, !=, NULL);
 	if (tr != NULL)
@@ -220,7 +226,14 @@ osif_free(void *buf, uint64_t size)
 {
 #ifdef _KERNEL
 	// kmem_free(kernel_map, buf, size);
-	VERIFY(ISP2(size));
+#ifdef DEBUG
+	if (!ISP2(size)) {
+		uint64_t would_align = osif_natural_align(size);
+
+		printf("%s:%d: !ISP2(size) size=%llu (%llx), would_align=%llu (%llx)\n",
+		    __func__, __LINE__, size, size, would_align, would_align);
+	}
+#endif
 	IOFreeAligned(buf, size);
 	atomic_inc_64(&stat_osif_free);
 	atomic_sub_64(&segkmem_total_mem_allocated, size);

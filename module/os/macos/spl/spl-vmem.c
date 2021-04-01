@@ -653,7 +653,7 @@ vmem_freelist_insert_sort_by_time(vmem_t *vmp, vmem_seg_t *vsp)
 		}
 		if (n->vs_start == 0) {
 			// from vmem_freelist_delete, this is a head
-			dprintf("SPL: %s: n->vs_start == 0 (%s)(steps: %u) "
+			printf("SPL: %s: n->vs_start == 0 (%s)(steps: %u) "
 			    "p->vs_start, end == %lu, %lu\n",
 			    __func__, vmp->vm_name, step,
 			    (uintptr_t)p->vs_start, (uintptr_t)p->vs_end);
@@ -675,7 +675,7 @@ vmem_freelist_insert_sort_by_time(vmem_t *vmp, vmem_seg_t *vsp)
 			break;
 		}
 		if (n->vs_knext == NULL) {
-			dprintf("SPL: %s: n->vs_knext == NULL (my_listnum "
+			printf("SPL: %s: n->vs_knext == NULL (my_listnum "
 			    "== %d)\n", __func__, my_listnum);
 			// IOSleep(1);
 			break;
@@ -1199,7 +1199,7 @@ vmem_nextfit_alloc(vmem_t *vmp, size_t size, int vmflag)
 			    &vmp->vm_kstat.vk_threads_waiting.value.ui64);
 			atomic_inc_64(&spl_vmem_threads_waiting);
 			if (spl_vmem_threads_waiting > 1)
-				dprintf("SPL: %s: waiting for %lu sized alloc "
+				printf("SPL: %s: waiting for %lu sized alloc "
 				    "after full circle of  %s, waiting "
 				    "threads %llu, total threads waiting "
 				    "= %llu.\n",
@@ -1609,7 +1609,7 @@ do_alloc:
 		atomic_inc_64(&vmp->vm_kstat.vk_threads_waiting.value.ui64);
 		atomic_inc_64(&spl_vmem_threads_waiting);
 		if (spl_vmem_threads_waiting > 0) {
-			dprintf("SPL: %s: vmem waiting for %lu sized alloc "
+			printf("SPL: %s: vmem waiting for %lu sized alloc "
 			    "for %s, waiting threads %llu, total threads "
 			    "waiting = %llu\n",
 			    __func__, size, vmp->vm_name,
@@ -1626,7 +1626,7 @@ do_alloc:
 			int64_t delivered_pressure =
 			    spl_free_set_and_wait_pressure(target_pressure,
 			    TRUE, USEC2NSEC(500));
-			dprintf("SPL: %s: pressure %lld targeted, %lld "
+			printf("SPL: %s: pressure %lld targeted, %lld "
 			    "delivered\n", __func__, target_pressure,
 			    delivered_pressure);
 			mutex_enter(&vmp->vm_lock);
@@ -2437,7 +2437,7 @@ xnu_alloc_throttled_bail(uint64_t now_ticks, vmem_t *calling_vmp,
 			void *m = spl_vmem_malloc_if_no_pressure(size);
 			if (m != NULL) {
 				uint64_t ticks = zfs_lbolt() - now_ticks;
-				dprintf("SPL: %s returning %llu bytes after "
+				printf("SPL: %s returning %llu bytes after "
 				    "%llu ticks (hz=%u, seconds = %llu), "
 				    "%u suspends, %u blocked, %u tries (%s)\n",
 				    __func__, (uint64_t)size,
@@ -2466,7 +2466,7 @@ xnu_alloc_throttled_bail(uint64_t now_ticks, vmem_t *calling_vmp,
 			uint64_t now = zfs_lbolt();
 			uint64_t ticks = now - now_ticks;
 			force_time = now;
-			dprintf("SPL: %s TIMEOUT %llu bytes after "
+			printf("SPL: %s TIMEOUT %llu bytes after "
 			    "%llu ticks (hz=%u, seconds=%llu), "
 			    "%u suspends, %u blocked, %u tries (%s)\n",
 			    __func__, (uint64_t)size,
@@ -2566,7 +2566,7 @@ xnu_alloc_throttled(vmem_t *bvmp, size_t size, int vmflag)
 
 	if (waiters > max_waiters_seen) {
 		max_waiters_seen = waiters;
-		dprintf("SPL: %s: max_waiters_seen increased to %u\n", __func__,
+		printf("SPL: %s: max_waiters_seen increased to %u\n", __func__,
 		    max_waiters_seen);
 	}
 
@@ -2628,7 +2628,7 @@ xnu_alloc_throttled(vmem_t *bvmp, size_t size, int vmflag)
 			bailing_threads++;
 			if (bailing_threads > max_bailers_seen) {
 				max_bailers_seen = bailing_threads;
-				dprintf("SPL: %s: max_bailers_seen increased "
+				printf("SPL: %s: max_bailers_seen increased "
 				    "to %u\n", __func__, max_bailers_seen);
 			}
 			void *b =
@@ -2687,7 +2687,7 @@ xnu_free_throttled(vmem_t *vmp, void *vaddr, size_t size)
 
 	if (a_waiters > max_waiters_seen) {
 		max_waiters_seen = a_waiters;
-		dprintf("SPL: %s: max_waiters_seen increased to %u\n",
+		printf("SPL: %s: max_waiters_seen increased to %u\n",
 		    __func__, max_waiters_seen);
 	}
 
@@ -2830,7 +2830,7 @@ vmem_bucket_alloc(vmem_t *null_vmp, size_t size, const int vmflags)
 
 	if (waiters > max_waiters_seen) {
 		max_waiters_seen = waiters;
-		dprintf("SPL: %s: max_waiters_seen increased to %u\n", __func__,
+		printf("SPL: %s: max_waiters_seen increased to %u\n", __func__,
 		    max_waiters_seen);
 	}
 
@@ -3198,13 +3198,13 @@ static inline void
 spl_printf_bucket_span_sizes(void)
 {
 	// this doesn't have to be super-exact
-	dprintf("SPL: %s: ", __func__);
+	printf("SPL: %s: ", __func__);
 	for (int i = VMEM_BUCKET_LOWBIT; i < VMEM_BUCKET_HIBIT; i++) {
 		int bnum = i - VMEM_BUCKET_LOWBIT;
 		vmem_t *bvmp = vmem_bucket_arena[bnum];
-		dprintf("%llu ", (uint64_t)bvmp->vm_min_import);
+		printf("%llu ", (uint64_t)bvmp->vm_min_import);
 	}
-	dprintf("\n");
+	printf("\n");
 }
 
 static inline void
@@ -3362,7 +3362,7 @@ vmem_init(const char *heap_name,
 	const uint64_t small = MAX(real_total_memory / (k * 128ULL), qm);
 	spl_bucket_tunable_large_span = MIN(big, 16ULL * m);
 	spl_bucket_tunable_small_span = small;
-	dprintf("SPL: %s: real_total_memory %llu, large spans %llu, small "
+	printf("SPL: %s: real_total_memory %llu, large spans %llu, small "
 	    "spans %llu\n", __func__, real_total_memory,
 	    spl_bucket_tunable_large_span, spl_bucket_tunable_small_span);
 	char *buf = vmem_alloc(spl_default_arena, VMEM_NAMELEN + 21, VM_SLEEP);
@@ -3370,7 +3370,7 @@ vmem_init(const char *heap_name,
 		const uint64_t bucket_largest_size = (1ULL << (uint64_t)i);
 		(void) snprintf(buf, VMEM_NAMELEN + 20, "%s_%llu",
 		    "bucket", bucket_largest_size);
-		dprintf("SPL: %s creating arena %s (i == %d)\n", __func__, buf,
+		printf("SPL: %s creating arena %s (i == %d)\n", __func__, buf,
 		    i);
 		const int bucket_number = i - VMEM_BUCKET_LOWBIT;
 		/* To reduce the number of IOMalloc/IOFree transactions with
@@ -3424,7 +3424,7 @@ vmem_init(const char *heap_name,
 	if (real_total_memory >= 16ULL * gib)
 		resv_size = gib;
 
-	dprintf("SPL: %s adding fixed allocation of %llu to the bucket_heap\n",
+	printf("SPL: %s adding fixed allocation of %llu to the bucket_heap\n",
 	    __func__, (uint64_t)resv_size);
 
 	spl_heap_arena_initial_alloc = vmem_add(spl_heap_arena,
@@ -3485,7 +3485,7 @@ vmem_init(const char *heap_name,
 		    VM_NOSLEEP | VM_BESTFIT | VM_PANIC);
 	}
 
-	dprintf("SPL: starting vmem_update() thread\n");
+	printf("SPL: starting vmem_update() thread\n");
 	vmem_update(NULL);
 
 	return (heap);
@@ -3558,7 +3558,7 @@ vmem_fini(vmem_t *heap)
 
 	bsd_untimeout(vmem_update, NULL);
 
-	dprintf("SPL: %s: stopped vmem_update.  Creating list and walking "
+	printf("SPL: %s: stopped vmem_update.  Creating list and walking "
 	    "arenas.\n", __func__);
 
 	/* Create a list of slabs to free by walking the list of allocs */
@@ -3592,16 +3592,16 @@ vmem_fini(vmem_t *heap)
 	vmem_walk(heap, VMEM_ALLOC, vmem_fini_freelist, heap);
 
 	vmem_free_span_list();
-	dprintf("\nSPL: %s destroying heap\n", __func__);
+	printf("\nSPL: %s destroying heap\n", __func__);
 	vmem_destroy(heap); // PARENT: spl_heap_arena
 
-	dprintf("SPL: %s: walking spl_heap_arena, aka bucket_heap (pass 1)\n",
+	printf("SPL: %s: walking spl_heap_arena, aka bucket_heap (pass 1)\n",
 	    __func__);
 
 	vmem_walk(spl_heap_arena, VMEM_ALLOC | VMEM_REENTRANT, vmem_fini_void,
 	    spl_heap_arena);
 
-	dprintf("SPL: %s: calling vmem_xfree(spl_default_arena, ptr, %llu);\n",
+	printf("SPL: %s: calling vmem_xfree(spl_default_arena, ptr, %llu);\n",
 	    __func__, (uint64_t)spl_heap_arena_initial_alloc_size);
 
 	// forcibly remove the initial alloc from spl_heap_arena arena, whether
@@ -3633,13 +3633,13 @@ vmem_fini(vmem_t *heap)
 	}
 	vmem_free_span_list();
 
-	dprintf("SPL: %s destroying spl_bucket_arenas...", __func__);
+	printf("SPL: %s destroying spl_bucket_arenas...", __func__);
 	for (int32_t i = VMEM_BUCKET_LOWBIT; i <= VMEM_BUCKET_HIBIT; i++) {
 		vmem_t *vmpt = vmem_bucket_arena[i - VMEM_BUCKET_LOWBIT];
-		dprintf(" %llu", (1ULL << i));
+		printf(" %llu", (1ULL << i));
 		vmem_destroy(vmpt); // parent: spl_default_arena_parent
 	}
-	dprintf("\n");
+	printf("\n");
 
 	printf("SPL: %s: walking vmem metadata-related arenas...\n", __func__);
 
@@ -3668,7 +3668,7 @@ vmem_fini(vmem_t *heap)
 	    vmem_fini_freelist, vmem_metadata_arena);
 
 	vmem_free_span_list();
-	dprintf("SPL: %s walking the root arena (spl_default_arena)...\n",
+	printf("SPL: %s walking the root arena (spl_default_arena)...\n",
 	    __func__);
 
 	vmem_walk(spl_default_arena, VMEM_ALLOC,
@@ -3676,7 +3676,7 @@ vmem_fini(vmem_t *heap)
 
 	vmem_free_span_list();
 
-	dprintf("SPL: %s destroying bucket heap\n", __func__);
+	printf("SPL: %s destroying bucket heap\n", __func__);
 	// PARENT: spl_default_arena_parent (but depends on buckets)
 	vmem_destroy(spl_heap_arena);
 
@@ -3689,12 +3689,12 @@ vmem_fini(vmem_t *heap)
 
 	// destroying the seg arena means we must no longer
 	// talk to vmem_populate()
-	dprintf("SPL: %s destroying vmem_seg_arena\n", __func__);
+	printf("SPL: %s destroying vmem_seg_arena\n", __func__);
 	vmem_destroy(vmem_seg_arena);
 
 	// vmem_hash_arena may be freed-to in vmem_destroy_internal()
 	// so it should be just before the vmem_metadata_arena.
-	dprintf("SPL: %s destroying vmem_hash_arena\n", __func__);
+	printf("SPL: %s destroying vmem_hash_arena\n", __func__);
 	vmem_destroy(vmem_hash_arena); // parent: vmem_metadata_arena
 	vmem_hash_arena = NULL;
 
@@ -3704,15 +3704,15 @@ vmem_fini(vmem_t *heap)
 	// vmem_destroy_internal_internal() function that does not touch
 	// vmem_hash_arena will need writing.
 
-	dprintf("SPL: %s destroying vmem_metadata_arena\n", __func__);
+	printf("SPL: %s destroying vmem_metadata_arena\n", __func__);
 	vmem_destroy(vmem_metadata_arena); // parent: spl_default_arena
 
-	dprintf("\nSPL: %s destroying spl_default_arena\n", __func__);
+	printf("\nSPL: %s destroying spl_default_arena\n", __func__);
 	vmem_destroy(spl_default_arena); // parent: spl_default_arena_parent
-	dprintf("\nSPL: %s destroying spl_default_arena_parant\n", __func__);
+	printf("\nSPL: %s destroying spl_default_arena_parant\n", __func__);
 	vmem_destroy(spl_default_arena_parent);
 
-	dprintf("SPL: %s destroying vmem_vmem_arena\n", __func__);
+	printf("SPL: %s destroying vmem_vmem_arena\n", __func__);
 	vmem_destroy_internal(vmem_vmem_arena);
 
 	printf("SPL: arenas removed, now try destroying mutexes... ");

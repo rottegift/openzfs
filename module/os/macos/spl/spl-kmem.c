@@ -4379,7 +4379,7 @@ spl_maybe_send_large_pressure(uint64_t now, uint64_t minutes, boolean_t full)
 		howmuch = sixtyfourth_physmem;
 
 
-	dprintf("SPL: %s: %lld bytes at time %llu\n",
+	printf("SPL: %s: %lld bytes at time %llu\n",
 	    __func__, howmuch, now);
 
 	spl_free_set_emergency_pressure(howmuch);
@@ -4404,7 +4404,7 @@ spl_free_thread()
 
 	mutex_enter(&spl_free_thread_lock);
 
-	dprintf("SPL: beginning spl_free_thread() loop, spl_free == %lld\n",
+	printf("SPL: beginning spl_free_thread() loop, spl_free == %lld\n",
 	    spl_free);
 
 	uint64_t recent_lowmem = 0;
@@ -4915,12 +4915,12 @@ spl_free_thread()
 		CALLB_CPR_SAFE_END(&cpr, &spl_free_thread_lock);
 	}
 	spl_free_thread_exit = FALSE;
-	dprintf("SPL: spl_free_thread_exit set to FALSE " \
+	printf("SPL: spl_free_thread_exit set to FALSE " \
 	    "and exiting: cv_broadcasting\n");
 	spl_free_manual_pressure = 0;
 	cv_broadcast(&spl_free_thread_cv);
 	CALLB_CPR_EXIT(&cpr);
-	dprintf("SPL: %s thread_exit\n", __func__);
+	printf("SPL: %s thread_exit\n", __func__);
 	thread_exit();
 }
 
@@ -5064,7 +5064,7 @@ spl_kmem_init(uint64_t xtotal_memory)
 	int use_large_pages = 0;
 	size_t maxverify, minfirewall;
 
-	dprintf("SPL: KMEM starting. Total memory %llu\n", xtotal_memory);
+	printf("SPL: KMEM starting. Total memory %llu\n", xtotal_memory);
 
 	// Initialise the kstat lock
 	mutex_init(&kmem_cache_lock, "kmem_cache_lock", MUTEX_DEFAULT, NULL);
@@ -6455,7 +6455,7 @@ ks_set_cp(ksupp_t *ks, kmem_cache_t *cp, const size_t cachenum)
 			if (__c11_atomic_compare_exchange_strong(
 			    &ks->cp_metadata, &expected, cp,
 			    __ATOMIC_SEQ_CST, __ATOMIC_RELAXED)) {
-				dprintf("SPL: %s: set iskvec[%llu].ks->"
+				printf("SPL: %s: set iskvec[%llu].ks->"
 				    "cp_metadata (%s) OK\n", __func__,
 				    b, cp->cache_name);
 				return;
@@ -6481,7 +6481,7 @@ ks_set_cp(ksupp_t *ks, kmem_cache_t *cp, const size_t cachenum)
 			if (__c11_atomic_compare_exchange_strong(
 			    &ks->cp_filedata, &expected, cp,
 			    __ATOMIC_SEQ_CST, __ATOMIC_RELAXED)) {
-				dprintf("SPL: %s: set iskvec[%llu].ks->"
+				printf("SPL: %s: set iskvec[%llu].ks->"
 				    "cp_filedata (%s) OK\n", __func__,
 				    b, cp->cache_name);
 				return;
@@ -6541,7 +6541,7 @@ spl_zio_no_grow_init(void)
 
 	spl_zio_no_grow_inited = true;
 
-	dprintf("SPL: %s done.\n", __func__);
+	printf("SPL: %s done.\n", __func__);
 }
 
 static void
@@ -6606,7 +6606,7 @@ spl_zio_is_suppressed(const size_t size, const uint64_t now,
 		return (false);
 	} else if (ks->pointed_to < 1) {
 		ASSERT(ks->pointed_to > 0); // throw an assertion
-		dprintf("SPL: %s: ERROR: iksvec[%llu].ks_entry->pointed_to "
+		printf("SPL: %s: ERROR: iksvec[%llu].ks_entry->pointed_to "
 		    "== %u for size %llu\n", __func__, (uint64_t)cachenum,
 		    ks->pointed_to, (uint64_t)size);
 		return (false);
@@ -6628,7 +6628,7 @@ spl_zio_is_suppressed(const size_t size, const uint64_t now,
 					atomic_inc_64(
 					    &ks->cp_metadata->arc_no_grow);
 				} else {
-					dprintf("WARNING: %s: ks_set_cp->"
+					printf("WARNING: %s: ks_set_cp->"
 					    "metadata == NULL after "
 					    "ks_set_cp !size = %lu\n",
 					    __func__, size);
@@ -6643,7 +6643,7 @@ spl_zio_is_suppressed(const size_t size, const uint64_t now,
 					atomic_inc_64(
 					    &ks->cp_filedata->arc_no_grow);
 				} else {
-					dprintf("WARNING: %s: "
+					printf("WARNING: %s: "
 					    "ks_set_cp->filedata == NULL "
 					    "after ks_set_cp !"
 					    "size = %lu\n",

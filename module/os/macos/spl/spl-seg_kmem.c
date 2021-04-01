@@ -160,7 +160,7 @@ osif_natural_align(uint64_t size)
 {
 	uint64_t align = PAGESIZE;
 
-	ASSERT3U(size, <=, UINT32_MAX);
+	VERIFY3U(size, <=, UINT32_MAX);
 	if (size > PAGESIZE && !ISP2(size) && size < UINT32_MAX) {
 		uint64_t v = size;
 		v--;
@@ -174,7 +174,9 @@ osif_natural_align(uint64_t size)
 	} else if (size > PAGESIZE && ISP2(size)) {
 		align = size;
 	}
-	ASSERT3U(align, >=, PAGESIZE);
+	VERIFY3U(align, >=, PAGESIZE);
+	VERIFY3U(align, >=, size);
+	VERIFY(ISP2(align));
 	return(align);
 }
 
@@ -191,8 +193,9 @@ osif_malloc(uint64_t size)
 
 	uint64_t align = osif_natural_align(size);
 
+	VERIFY(ISP2(size));
 	tr = IOMallocAligned(size, align);
-	ASSERT3P(tr, !=, NULL);
+	VERIFY3P(tr, !=, NULL);
 	if (tr != NULL)
 		kr = KERN_SUCCESS;
 
@@ -217,7 +220,7 @@ osif_free(void *buf, uint64_t size)
 {
 #ifdef _KERNEL
 	// kmem_free(kernel_map, buf, size);
-	ASSERT(ISP2(size));
+	VERIFY(ISP2(size));
 	IOFreeAligned(buf, size);
 	atomic_inc_64(&stat_osif_free);
 	atomic_sub_64(&segkmem_total_mem_allocated, size);

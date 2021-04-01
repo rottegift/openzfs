@@ -4600,7 +4600,9 @@ spl_free_thread()
 			lowmem = true;
 			recent_lowmem = time_now;
 			last_disequilibrium = time_now_seconds;
+
 			int64_t spec_bytes = (int64_t)vm_page_speculative_count
+
 			    * (int64_t)PAGESIZE;
 			if (vm_page_free_wanted > 0 || new_p > spec_bytes) {
 				// force a stronger reaction from ARC if we are
@@ -4687,6 +4689,7 @@ spl_free_thread()
 			}
 			if (vm_page_speculative_count / 2 + vm_page_free_count >
 			    vm_page_free_min) {
+
 				lowmem = false;
 				spl_free_fast_pressure = FALSE;
 			}

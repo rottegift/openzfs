@@ -30,6 +30,24 @@
 
 extern int cpu_number(void);
 
+#ifdef __x86_64__
+#define	cpuid(func, a, b, c, d) \
+	__asm__ __volatile__( \
+	"        pushq %%rbx        \n" \
+	"        xorq %%rcx,%%rcx   \n" \
+	"        cpuid              \n" \
+	"        movq %%rbx, %%rsi  \n" \
+	"        popq %%rbx         \n" : \
+	"=a" (a), "=S" (b), "=c" (c), "=d" (d) : "a" (func))
+#else /* Add ARM */
+#define	cpuid(func, a, b, c, d) \
+	a = b = c = d = 0
+#endif
+
+static uint64_t cpuid_features = 0ULL;
+static uint64_t cpuid_features_leaf7 = 0ULL;
+static boolean_t cpuid_has_xgetbv = B_FALSE;
+
 uint32_t
 getcpuid()
 {

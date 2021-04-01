@@ -48,6 +48,8 @@
 #undef uio_t
 #undef vnode_t
 #include_next <sys/vnode.h>
+#undef proc_t
+#define	proc_t struct proc
 #define	vnode_t struct vnode
 #define	uio_t struct uio
 

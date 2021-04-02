@@ -3879,6 +3879,11 @@ metaslab_flush(metaslab_t *msp, dmu_tx_t *tx)
 
 	uint64_t sm_len_after = space_map_length(msp->ms_sm);
 	if (zfs_flags & ZFS_DEBUG_LOG_SPACEMAP) {
+		// smd - noisy damn thing when it often says nothing
+		if (range_tree_space(msp->ms_unflushed_allocs) > 0
+		    || range_tree_space(msp->ms_unflushed_frees) > 0
+		    || (sm_len_after - sm_len_before) != 0) {
+
 		zfs_dbgmsg("flushing: txg %llu, spa %s, vdev_id %llu, "
 		    "ms_id %llu, unflushed_allocs %llu, unflushed_frees %llu, "
 		    "appended %llu bytes", dmu_tx_get_txg(tx), spa_name(spa),
@@ -3886,6 +3891,8 @@ metaslab_flush(metaslab_t *msp, dmu_tx_t *tx)
 		    range_tree_space(msp->ms_unflushed_allocs),
 		    range_tree_space(msp->ms_unflushed_frees),
 		    (sm_len_after - sm_len_before));
+
+		}
 	}
 
 	ASSERT3U(spa->spa_unflushed_stats.sus_memused, >=,

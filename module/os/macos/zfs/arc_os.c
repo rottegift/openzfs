@@ -244,6 +244,7 @@ static void arc_kmem_reap_now(void)
 	/* arc.c will do the heavy lifting */
 	arc_kmem_reap_soon();
 
+#if 0
 	/* Now some OsX additionals */
 	extern kmem_cache_t *abd_chunk_cache;
 	extern kmem_cache_t *znode_cache;
@@ -258,6 +259,7 @@ static void arc_kmem_reap_now(void)
 		 */
 		vmem_qcache_reap(zio_arena_parent);
 	}
+#endif
 }
 
 

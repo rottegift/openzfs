@@ -167,6 +167,8 @@ typedef struct osx_kstat {
 	kstat_named_t zfs_deadman_failmode;
 	kstat_named_t zfs_deadman_synctime_ms;
 	kstat_named_t zfs_deadman_ziotime_ms;
+	kstat_named_t zfs_deadman_enabled;
+	kstat_named_t zio_deadman_log_all;
 	kstat_named_t zfs_disable_ivset_guid_check;
 	kstat_named_t zfs_initialize_value;
 	kstat_named_t zfs_keep_log_spacemaps_at_export;
@@ -316,7 +318,6 @@ extern unsigned long zfs_initialize_chunk_size;
 extern int zfs_scan_suspend_progress;
 extern int zfs_removal_suspend_progress;
 extern unsigned long zfs_livelist_max_entries;
-
 extern int zfs_allow_redacted_dataset_mount;
 extern unsigned int zfs_checksum_events_per_second;
 extern int zfs_commit_timeout_pct;
@@ -327,6 +328,8 @@ extern unsigned long zfs_deadman_checktime_ms;
 extern char *zfs_deadman_failmode;
 extern unsigned long zfs_deadman_synctime_ms;
 extern unsigned long zfs_deadman_ziotime_ms;
+extern int zfs_deadman_enabled;
+extern int zio_deadman_log_all;
 extern int zfs_disable_ivset_guid_check;
 extern unsigned long zfs_initialize_value;
 extern int zfs_keep_log_spacemaps_at_export;

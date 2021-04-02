@@ -200,6 +200,8 @@ osx_kstat_t osx_kstat = {
 	{"zfs_deadman_failmode",		KSTAT_DATA_STRING  },
 	{"zfs_deadman_synctime_ms",		KSTAT_DATA_UINT64  },
 	{"zfs_deadman_ziotime_ms",		KSTAT_DATA_UINT64  },
+	{"zfs_deadman_enabled",		        KSTAT_DATA_UINT64  },
+	{"zio_deadman_log_all",		        KSTAT_DATA_UINT64  },
 	{"zfs_disable_ivset_guid_check",	KSTAT_DATA_UINT64  },
 	{"zfs_initialize_value",		KSTAT_DATA_UINT64  },
 	{"zfs_keep_log_spacemaps_at_export",	KSTAT_DATA_UINT64  },
@@ -501,6 +503,11 @@ static int osx_kstat_update(kstat_t *ksp, int rw)
 		    ks->zfs_deadman_synctime_ms.value.ui64;
 		zfs_deadman_ziotime_ms =
 		    ks->zfs_deadman_ziotime_ms.value.ui64;
+		zfs_deadman_enabled =
+		    ks->zfs_deadman_enabled.value.ui64;
+		zio_deadman_log_all =
+		    ks->zio_deadman_log_all.value.ui64;
+
 		zfs_disable_ivset_guid_check =
 		    ks->zfs_disable_ivset_guid_check.value.ui64;
 		zfs_initialize_value =
@@ -787,6 +794,9 @@ static int osx_kstat_update(kstat_t *ksp, int rw)
 		ks->zfs_deadman_synctime_ms.value.ui64 =
 		    zfs_deadman_synctime_ms;
 		ks->zfs_deadman_ziotime_ms.value.ui64 = zfs_deadman_ziotime_ms;
+		ks->zfs_deadman_enabled.value.ui64 = zfs_deadman_enabled;
+		ks->zio_deadman_log_all.value.ui64 = zio_deadman_log_all;
+
 		ks->zfs_disable_ivset_guid_check.value.ui64 =
 		    zfs_disable_ivset_guid_check;
 		ks->zfs_initialize_value.value.ui64 = zfs_initialize_value;

@@ -322,7 +322,11 @@ unsigned long zfs_deadman_checktime_ms = 60000UL;
 /*
  * By default the deadman is enabled.
  */
+#ifdef __APPLE__
+int zfs_deadman_enabled = 0;
+#else
 int zfs_deadman_enabled = 1;
+#endif
 
 /*
  * Controls the behavior of the deadman when it detects a "hung" I/O.

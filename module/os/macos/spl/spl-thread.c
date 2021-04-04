@@ -67,7 +67,7 @@ spl_thread_create(
 
 	/* Improve the priority when asked to do so */
 	if (pri > minclsyspri) {
-		thread_precedence_policy_data_t policy;
+		thread_precedence_policy_data_t policy = { 0 };
 
 		/*
 		 * kernel priorities (osfmk/kern/sched.h)
@@ -99,10 +99,14 @@ spl_thread_create(
 
 		policy.importance = (pri - minclsyspri);
 
-		thread_policy_set(thread,
+		kern_return_t pol_prec_kret = thread_policy_set(thread,
 		    THREAD_PRECEDENCE_POLICY,
 		    (thread_policy_t)&policy,
 		    THREAD_PRECEDENCE_POLICY_COUNT);
+		if (pol_prec_kret != KERN_SUCCESS) {
+			printf("SPL: %s:%d: ERROR failed to set thread precedence to %d ret %d\n",
+			    __func__, __LINE__, pri - minclsyspri, pol_prec_kret);
+		}
 	}
 
 	thread_deallocate(thread);
@@ -145,4 +149,12 @@ timeout_generic(int type, void (*func)(void *), void *arg,
 	 * untimeout_generic() they would pass it back to us
 	 */
 	return ((callout_id_t)arg);
+}
+
+extern void throttle_set_thread_io_policy(int priority);
+
+void
+spl_throttle_set_thread_io_policy(int priority)
+{
+       throttle_set_thread_io_policy(priority);
 }

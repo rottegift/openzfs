@@ -58,6 +58,10 @@ struct taskq_ent;
 #define	TASKQ_THREADS_CPU_PCT	0x0008	/* number of threads as % of ncpu */
 #define	TASKQ_DC_BATCH		0x0010	/* Taskq uses SDC in batch mode */
 
+#ifdef __APPLE__
+#define TASKQ_TIMESHARE         0x0020  /* Special macOS thread deprioritization */
+#endif
+
 /*
  * Flags for taskq_dispatch. TQ_SLEEP/TQ_NOSLEEP should be same as
  * KM_SLEEP/KM_NOSLEEP.

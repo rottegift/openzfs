@@ -1026,6 +1026,19 @@ spa_taskqs_init(spa_t *spa, zio_type_t t, zio_taskq_type_t q)
 				pri += 4;
 #elif defined(__APPLE__)
 				pri--;
+#if defined(_KERNEL)
+				/* ZIO_INTERRUPT tasks, especially
+				 * the read one (during scrubs) can
+				 * consume a lot of CPU, so should be
+				 * handled differently.
+				 */
+				if (q == ZIO_TASKQ_INTERRUPT &&
+				    (t == ZIO_TYPE_READ ||
+					t == ZIO_TYPE_WRITE)) {
+					if ((flags & (TASKQ_DC_BATCH|TASKQ_DUTY_CYCLE)) == 0)
+						flags |= TASKQ_TIMESHARE;
+				}
+#endif
 #else
 #error "unknown OS"
 #endif

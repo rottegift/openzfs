@@ -30,3 +30,5 @@ _rootvnode
 _cpuid_info
 _vnode_iocount
 _kx_qsort
+_thread_set_cpulimit
+_throttle_set_thread_io_policy

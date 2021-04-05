@@ -1020,7 +1020,7 @@ system_taskq_init(void)
 #ifdef __APPLE__
 	system_taskq = taskq_create_common("system_taskq", 0,
 	    system_taskq_size * max_ncpus, minclsyspri, 4, 512, &p0, 0,
-	    TASKQ_DYNAMIC | TASKQ_PREPOPULATE);
+	    TASKQ_DYNAMIC | TASKQ_PREPOPULATE | TASKQ_REALLY_DYNAMIC);
 #else
 	system_taskq = taskq_create_common("system_taskq", 0,
 	    system_taskq_size * max_ncpus, minclsyspri, 4, 512, &p0, 0,
@@ -2283,7 +2283,8 @@ taskq_create_common(const char *name, int instance, int nthreads, pri_t pri,
 	 * We are not allowed to use TASKQ_DYNAMIC with taskq_dispatch_ent()
 	 * but that is done by spa.c - so we will simply mask DYNAMIC out.
 	 */
-	flags &= ~TASKQ_DYNAMIC;
+	if (!(flags & TASKQ_REALLY_DYNAMIC))
+		flags &= ~TASKQ_DYNAMIC;
 
 	/*
 	 * TASKQ_DYNAMIC, TASKQ_CPR_SAFE and TASKQ_THREADS_CPU_PCT are all

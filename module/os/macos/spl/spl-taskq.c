@@ -2280,6 +2280,12 @@ taskq_create_common(const char *name, int instance, int nthreads, pri_t pri,
 	int max_nthreads;
 
 	/*
+	 * We are not allowed to use TASKQ_DYNAMIC with taskq_dispatch_ent()
+	 * but that is done by spa.c - so we will simply mask DYNAMIC out.
+	 */
+	flags &= ~TASKQ_DYNAMIC;
+
+	/*
 	 * TASKQ_DYNAMIC, TASKQ_CPR_SAFE and TASKQ_THREADS_CPU_PCT are all
 	 * mutually incompatible.
 	 */

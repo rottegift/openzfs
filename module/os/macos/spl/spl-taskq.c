@@ -1802,7 +1802,7 @@ taskq_sysdc_thread_enter_emulate_maybe(taskq_t *tq)
                            " (prec now %d)\n",
                            __func__, __LINE__, precret, prec.importance);
                } else {
-                       tq->tq_pri = minclsyspri + prec.importance;
+                       tq->tq_pri = defclsyspri + prec.importance;
                        dprintf("SPL: %s:%d: SUCCESS setting thread precedence %x, %s\n", __func__, __LINE__,
                            prec.importance, tq->tq_name);
                }

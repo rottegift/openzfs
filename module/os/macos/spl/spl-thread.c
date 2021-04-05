@@ -97,11 +97,22 @@ spl_thread_create(
 		 * #define MINCLSYSPRI     60
 		 */
 
-		policy.importance = pri - minclsyspri;
-		if (policy.importance < 1)
+		/*
+		 * thread policy importance is a signed value
+		 * (mach/thread_policy.h)
+		 * starting at KERN_BASEPRI (81)
+		 *
+		 * with maxclsyspri at 81
+		 *
+		 */
+
+		policy.importance = pri - 81;
+
+		/* don't let ANYTHING run as high as networking & GPU */
+		if (policy.importance > 1)
 			policy.importance = 1;
-		if (policy.importance > 10)
-			policy.importance = 10;
+		else if (policy.importance < (-11))
+			policy.importance = -11;
 
 		kern_return_t pol_prec_kret = thread_policy_set(thread,
 		    THREAD_PRECEDENCE_POLICY,

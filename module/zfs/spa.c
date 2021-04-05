@@ -1025,7 +1025,7 @@ spa_taskqs_init(spa_t *spa, zio_type_t t, zio_taskq_type_t q)
 #elif defined(__FreeBSD__)
 				pri += 4;
 #elif defined(__APPLE__)
-				pri--;
+				pri -= 4;
 #if defined(_KERNEL)
 				/* ZIO_INTERRUPT tasks, especially
 				 * the read one (during scrubs) can

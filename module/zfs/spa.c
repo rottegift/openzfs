@@ -1032,6 +1032,7 @@ spa_taskqs_init(spa_t *spa, zio_type_t t, zio_taskq_type_t q)
 				 * consume a lot of CPU, so should be
 				 * handled differently.
 				 */
+				flags &= ~TASKQ_DYNAMIC;
 				if (q == ZIO_TASKQ_INTERRUPT &&
 				    (t == ZIO_TYPE_READ ||
 					t == ZIO_TYPE_WRITE)) {

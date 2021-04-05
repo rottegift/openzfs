@@ -97,7 +97,11 @@ spl_thread_create(
 		 * #define MINCLSYSPRI     60
 		 */
 
-		policy.importance = (pri - minclsyspri);
+		policy.importance = pri - minclsyspri;
+		if (policy.importance < 1)
+			policy.importance = 1;
+		if (policy.importance > 10)
+			policy.importance = 10;
 
 		kern_return_t pol_prec_kret = thread_policy_set(thread,
 		    THREAD_PRECEDENCE_POLICY,

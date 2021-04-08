@@ -301,9 +301,6 @@ segkmem_abd_init()
 	    16 * 1024, VM_SLEEP);
 
 	ASSERT(abd_arena != NULL);
-
-	extern void spl_zio_no_grow_init(void);
-	spl_zio_no_grow_init();
 }
 
 void

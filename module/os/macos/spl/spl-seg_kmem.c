@@ -296,9 +296,9 @@ segkmem_abd_init()
 
 	extern vmem_t *spl_heap_arena;
 
-	abd_arena = vmem_create("abd_qcache", NULL, 0,
-	    262144, vmem_alloc, vmem_free, spl_heap_arena,
-	    16 * 1024, VM_SLEEP);
+	abd_arena = vmem_create("abd_cache", NULL, 0,
+	    PAGESIZE, vmem_alloc, vmem_free, spl_heap_arena,
+	    262144, VM_SLEEP | VMC_NO_QCACHE);
 
 	ASSERT(abd_arena != NULL);
 }

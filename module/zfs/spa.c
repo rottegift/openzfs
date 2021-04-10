@@ -1027,18 +1027,30 @@ spa_taskqs_init(spa_t *spa, zio_type_t t, zio_taskq_type_t q)
 #elif defined(__APPLE__)
 				pri -= 4;
 #if defined(_KERNEL)
-				/* ZIO_INTERRUPT tasks, especially
-				 * the read one (during scrubs) can
-				 * consume a lot of CPU, so should be
-				 * handled differently.
+			} else {
+				/*
+				 * we want to be below maclsyspri for zio
+				 * taskqs on macOS, to avoid starving out
+				 * base=81 (maxclsyspri) kernel tasks when
+				 * doing computation-intensive checksums etc.
 				 */
-				flags &= ~TASKQ_DYNAMIC;
-				if (q == ZIO_TASKQ_INTERRUPT &&
-				    (t == ZIO_TYPE_READ ||
-					t == ZIO_TYPE_WRITE)) {
-					if ((flags & (TASKQ_DC_BATCH|TASKQ_DUTY_CYCLE)) == 0)
-						flags |= TASKQ_TIMESHARE;
-				}
+				pri -= 1;
+			}
+			/* macOS cannot handle TASKQ_DYNAMIC zio taskqs */
+			flags &= ~TASKQ_DYNAMIC;
+
+			/*
+			 * ZIO_INTERRUPT tasks, especially
+			 * the read one (during scrubs) can
+			 * consume a lot of CPU, so should be
+			 * handled differently.
+			 */
+			if (q == ZIO_TASKQ_INTERRUPT &&
+			    (t == ZIO_TYPE_READ ||
+				t == ZIO_TYPE_WRITE)) {
+				if ((flags & (TASKQ_DC_BATCH|TASKQ_DUTY_CYCLE)) == 0)
+					flags |= TASKQ_TIMESHARE;
+				/* fallthrough to closing brace after #endif */
 #endif
 #else
 #error "unknown OS"

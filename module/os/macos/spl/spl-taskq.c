@@ -2711,44 +2711,6 @@ taskq_bucket_extend(void *arg)
 	tqe->tqent_thread = (kthread_t *)0xCEDEC0DE;
 	thread = thread_create(NULL, 0, (void (*)(void *))taskq_d_thread,
 	    tqe, 0, pp0, TS_RUN, tq->tq_pri);
-
-	thread_precedence_policy_data_t prec = { 0 };
-	prec.importance = tq->tq_pri - 81;
-               if (tq->tq_DC <= 50)
-                       prec.importance--;
-               if (tq->tq_flags & TASKQ_DC_BATCH)
-                       prec.importance--;
-	       if (prec.importance < -11)
-		       prec.importance = -11;
-	       else if (prec.importance > -1)
-		       prec.importance = -1;
-               kern_return_t precret = thread_policy_set(tqe->tqent_thread,
-                   THREAD_PRECEDENCE_POLICY,
-                   (thread_policy_t)&prec,
-                   THREAD_PRECEDENCE_POLICY_COUNT);
-               if (precret != KERN_SUCCESS) {
-                       printf("SPL: %s:%d: WARNING failed to set thread precedence retval %d"
-                           " (prec now %d)\n",
-                           __func__, __LINE__, precret, prec.importance);
-               } else {
-                       tq->tq_pri = defclsyspri + prec.importance;
-                       dprintf("SPL: %s:%d: SUCCESS setting thread precedence %x, %s\n", __func__, __LINE__,
-                           prec.importance, tq->tq_name);
-               }
-
-               /* set the TIMESHARE property on all taskq_d threads */
-               thread_extended_policy_data_t policy = { .timeshare = TRUE };
-               kern_return_t kret = thread_policy_set(tqe->tqent_thread,
-                   THREAD_EXTENDED_POLICY,
-                   (thread_policy_t)&policy,
-                   THREAD_EXTENDED_POLICY_COUNT);
-               if (kret != KERN_SUCCESS) {
-                       printf("SPL: %s:%d: WARNING failed to set timeshare policy retval: %d, %s\n",
-                           __func__, __LINE__, kret, tq->tq_name);
-               } else {
-                       dprintf("SPL: %s:%d: SUCCESS setting timeshare policy, %s\n", __func__, __LINE__,
-                           tq->tq_name);
-               }
 #else
 
 	/*

@@ -109,8 +109,8 @@ spl_thread_create(
 		policy.importance = pri - 81;
 
 		/* don't let ANYTHING run as high as networking & GPU */
-		if (policy.importance > 1)
-			policy.importance = 1;
+		if (policy.importance > 0)
+			policy.importance = 0;
 		else if (policy.importance < (-11))
 			policy.importance = -11;
 

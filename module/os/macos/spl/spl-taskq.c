@@ -1782,12 +1782,26 @@ taskq_sysdc_thread_enter_emulate_maybe(taskq_t *tq)
 		* the more XNU will adjust a thread.
 		* Threads may be adjusted *upwards* from their
 		* base priority by XNU as well.
+		*
+		* importance is realtive to kernel basepri (81)
+		* and we shoudl generally be less than 0, which
+		* is the priority for most kernel threads.
+		* Metal and network interface threads run at 82.
+		* If we are above 82, we run the risk of losing
+		* network connections, and making GUI users unhappy.
+		*
+		* Empirically, zfs works well in the importance
+		* range [-11, -1].
                 */
-               prec.importance = 0;
+               prec.importance = tq->tq_pri - 81;
                if (tq->tq_DC <= 50)
                        prec.importance--;
                if (tq->tq_flags & TASKQ_DC_BATCH)
                        prec.importance--;
+	       if (prec.importance < -11)
+		       prec.importance = -11;
+	       else if (prec.importance > -1)
+		       prec.importance = -1;
                kern_return_t precret = thread_policy_set(current_thread(),
                    THREAD_PRECEDENCE_POLICY,
                    (thread_policy_t)&prec,

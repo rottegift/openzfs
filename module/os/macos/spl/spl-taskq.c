@@ -1883,6 +1883,21 @@ taskq_thread_enter_timeshare_maybe(taskq_t *tq)
                        dprintf("SPL: %s:%d: SUCCESS setting timeshare policy, %s\n", __func__, __LINE__,
                            tq->tq_name);
                }
+	       /* use USER_INITIATED througput, rather than USER_INTERACTIVE throughput */
+               thread_throughput_qos_policy_data_t qosp = { 0 };
+	       qosp.thread_throughput_qos_tier = THROUGHPUT_QOS_TIER_1;
+               kern_return_t qoskret = thread_policy_set(current_thread(),
+                   THREAD_THROUGHPUT_QOS_POLICY,
+                   (thread_policy_t)&qosp,
+                   THREAD_THROUGHPUT_QOS_POLICY_COUNT);
+               if (qoskret != KERN_SUCCESS) {
+                       printf("SPL: %s:%d: WARNING failed to set thread throughput policy retval: %d "
+                           " (THREAD_THROUGHPUT_QOS_POLICY %x), %s",
+                           __func__, __LINE__, qoskret, qosp.thread_throughput_qos_tier, tq->tq_name);
+               } else {
+                       dprintf("SPL: %s:%d SUCCESS setting thread throughput policy to %x, %s\n",
+                           __func__, __LINE__, qosp.thread_throughput_qos_tier, tq->tq_name);
+               }
        }
 }
 

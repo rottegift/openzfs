@@ -1784,7 +1784,7 @@ taskq_sysdc_thread_enter_emulate_maybe(taskq_t *tq)
 		* base priority by XNU as well.
 		*
 		* importance is realtive to kernel basepri (81)
-		* and we shoudl generally be less than 0, which
+		* and we should generally be less than 0, which
 		* is the priority for most kernel threads.
 		* Metal and network interface threads run at 82.
 		* If we are above 82, we run the risk of losing
@@ -1883,6 +1883,48 @@ taskq_sysdc_thread_enter_emulate_maybe(taskq_t *tq)
 static void
 taskq_thread_enter_timeshare_maybe(taskq_t *tq)
 {
+               thread_precedence_policy_data_t prec = { 0 };
+               /*
+		* XNU will dynamically adjust TIMESHARE
+		* threads around the chosen thread priority.
+		* The lower the importance (signed value),
+		* the more XNU will adjust a thread.
+		* Threads may be adjusted *upwards* from their
+		* base priority by XNU as well.
+		*
+		* importance is realtive to kernel basepri (81)
+		* and we should generally be less than 0, which
+		* is the priority for most kernel threads.
+		* Metal and network interface threads run at 82.
+		* If we are above 82, we run the risk of losing
+		* network connections, and making GUI users unhappy.
+		*
+		* Empirically, zfs works well in the importance
+		* range [-11, -1].
+                */
+               prec.importance = tq->tq_pri - 81;
+               if (tq->tq_DC <= 50)
+                       prec.importance--;
+               if (tq->tq_flags & TASKQ_DC_BATCH)
+                       prec.importance--;
+	       if (prec.importance < -11)
+		       prec.importance = -11;
+	       else if (prec.importance > -1)
+		       prec.importance = -1;
+               kern_return_t precret = thread_policy_set(current_thread(),
+                   THREAD_PRECEDENCE_POLICY,
+                   (thread_policy_t)&prec,
+                   THREAD_PRECEDENCE_POLICY_COUNT);
+               if (precret != KERN_SUCCESS) {
+                       printf("SPL: %s:%d: WARNING failed to set thread precedence retval %d"
+                           " (prec now %d)\n",
+                           __func__, __LINE__, precret, prec.importance);
+               } else {
+                       tq->tq_pri = defclsyspri + prec.importance;
+                       dprintf("SPL: %s:%d: SUCCESS setting thread precedence %x, %s\n", __func__, __LINE__,
+                           prec.importance, tq->tq_name);
+               }
+
        if (tq->tq_flags & TASKQ_TIMESHARE) {
                /* set the TIMESHARE property on this thread */
                thread_extended_policy_data_t policy = { .timeshare = TRUE };

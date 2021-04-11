@@ -1776,17 +1776,12 @@ taskq_sysdc_thread_enter_emulate_maybe(taskq_t *tq)
 
                thread_precedence_policy_data_t prec = { 0 };
                /*
-                * BASEPRI_PREEMPT - 1 == 93 - 1 == 92;
-                * 92 - BASEPRI_KERNEL == 92 - 81 = 11;
-                * so we'll be gentle and make it 10,
-                * which should give us a thread with base 91
-                * and decaying with CPU use to 81 or lower;
-                * we'll also slightly penalize BATCH
-                *
-                * Note that xnu's TIMESHARE threads can rise in
-                * importance as well as lower, so starting at 0
-                * (meaning BASEPRI_KERNEL, meaning pri 81)
-                * is fine.
+		* XNU will dynamically adjust TIMESHARE
+		* threads around the chosen thread priority.
+		* The lower the importance (signed value),
+		* the more XNU will adjust a thread.
+		* Threads may be adjusted *upwards* from their
+		* base priority by XNU as well.
                 */
                prec.importance = 0;
                if (tq->tq_DC <= 50)

@@ -2722,7 +2722,7 @@ taskq_bucket_extend(void *arg)
 		       prec.importance = -11;
 	       else if (prec.importance > -1)
 		       prec.importance = -1;
-               kern_return_t precret = thread_policy_set(tqe->tqent_thread,
+               kern_return_t precret = thread_policy_set(thread,
                    THREAD_PRECEDENCE_POLICY,
                    (thread_policy_t)&prec,
                    THREAD_PRECEDENCE_POLICY_COUNT);
@@ -2738,7 +2738,7 @@ taskq_bucket_extend(void *arg)
 
                /* set the TIMESHARE property on all taskq_d threads */
                thread_extended_policy_data_t policy = { .timeshare = TRUE };
-               kern_return_t kret = thread_policy_set(tqe->tqent_thread,
+               kern_return_t kret = thread_policy_set(thread,
                    THREAD_EXTENDED_POLICY,
                    (thread_policy_t)&policy,
                    THREAD_EXTENDED_POLICY_COUNT);

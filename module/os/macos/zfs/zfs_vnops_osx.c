@@ -3446,7 +3446,7 @@ zfs_vnop_getxattr(struct vnop_getxattr_args *ap)
 			if (resid == 0) {
 				*ap->a_size = size;
 			} else {
-				error = zfs_uiomove(value, size, UIO_WRITE,
+				error = zfs_uiomove(value, size, UIO_READ,
 				    uio);
 			}
 		}

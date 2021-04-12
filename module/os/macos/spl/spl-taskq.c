@@ -1796,7 +1796,7 @@ set_taskq_thread_attributes(thread_t thread, taskq_t *tq)
 	       set_thread_throughput_named(thread,
 		   batch_throughput, tq->tq_name);
        else if (tq->tq_flags & TASKQ_DUTY_CYCLE)
-	       set_thread_througput_named(thread,
+	       set_thread_throughput_named(thread,
 		   sysdc_throughput, tq->tq_name);
        else
 	       set_thread_throughput_named(thread,

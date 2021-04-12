@@ -7664,7 +7664,9 @@ arc_init(void)
 	mutex_init(&arc_prune_mtx, NULL, MUTEX_DEFAULT, NULL);
 
 #ifdef __APPLE__
-#define TASKQ_REALLY_DYNAMIC 0x40
+#ifndef _KERNEL
+#define TASKQ_REALLY_DYNAMIC 0x0
+#endif
 	arc_prune_taskq = taskq_create("arc_prune", 100, defclsyspri,
 	    boot_ncpus, INT_MAX, TASKQ_PREPOPULATE | TASKQ_DYNAMIC |
 	    TASKQ_REALLY_DYNAMIC |

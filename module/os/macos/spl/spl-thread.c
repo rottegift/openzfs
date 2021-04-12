@@ -65,7 +65,7 @@ spl_thread_create(
 	if (result != KERN_SUCCESS)
 		return (NULL);
 
-	set_thread_importance(thread);
+	set_thread_importance_named(thread, pri, "anonymous new zfs thread");
 
 	thread_deallocate(thread);
 
@@ -189,15 +189,16 @@ set_thread_throughput_named(thread_t thread,
 	 */
 
 	thread_throughput_qos_policy_data_t qosp = { 0 };
-	qosp.thread_throughput_qos_tier = sysdc_throughput;
-	kern_return_t qoskret = thread_policy_set(current_thread(),
+	qosp.thread_throughput_qos_tier = throughput;
+
+	kern_return_t qoskret = thread_policy_set(thread,
 	    THREAD_THROUGHPUT_QOS_POLICY,
 	    (thread_policy_t)&qosp,
 	    THREAD_THROUGHPUT_QOS_POLICY_COUNT);
 	if (qoskret != KERN_SUCCESS) {
 		printf("SPL: %s:%d: WARNING failed to set"
 		    " thread throughput policy retval: %d "
-		    " (THREAD_THROUGHPUT_QOS_POLICY %x)\n"
+		    " (THREAD_THROUGHPUT_QOS_POLICY %x), %s\n",
 		    __func__, __LINE__, qoskret,
 		    qosp.thread_throughput_qos_tier, name);
 	}
@@ -207,7 +208,7 @@ void
 set_thread_throughput(thread_t thread,
     thread_throughput_qos_t throughput)
 {
-	set_thread_throughput(thread, throughput, "anonymous zfs function");
+	set_thread_throughput_named(thread, throughput, "anonymous zfs function");
 }
 
 void
@@ -230,10 +231,10 @@ set_thread_latency_named(thread_t thread,
 	    THREAD_LATENCY_QOS_POLICY_COUNT);
 	if (qoskret != KERN_SUCCESS) {
 		printf("SPL: %s:%d: WARNING failed to set"
-		    " thread latency policy retval: %\d "
+		    " thread latency policy retval: %d "
 		    " (THREAD_LATENCY_QOS_POLICY %x), %s",
 		    __func__, __LINE__,
-		    qoskret, qosp.thread_latency_qos_tier
+		    qoskret, qosp.thread_latency_qos_tier,
 		    name);
 	}
 }
@@ -272,5 +273,5 @@ set_thread_timeshare_named(thread_t thread, char *name)
 void
 set_thread_timeshare(thread_t thread)
 {
-	thread_set_timeshare_named(thread, "anonymous zfs function");
+	set_thread_timeshare_named(thread, "anonymous zfs function");
 }

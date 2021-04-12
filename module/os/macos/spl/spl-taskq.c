@@ -1771,7 +1771,7 @@ taskq_thread_set_cpulimit(taskq_t *tq)
  */
 
 static void
-set_taskq_thread_attributes(thread_t thread, taskq_t *tq);
+set_taskq_thread_attributes(thread_t thread, taskq_t *tq)
 {
        pri_t pri = tq->tq_pri;
 

@@ -34,6 +34,7 @@
 #include <sys/tsd.h>
 #include <sys/condvar.h>
 #include <kern/sched_prim.h>
+#include <mach/thread_policy.h>
 
 #ifdef	__cplusplus
 extern "C" {
@@ -99,11 +100,11 @@ extern void spl_thread_exit(void);
 
 extern kthread_t *spl_current_thread(void);
 
-extern void set_thread_inmportance_named(thread_t, pri_t, char *);
+extern void set_thread_importance_named(thread_t, pri_t, char *);
 extern void set_thread_importance(thread_t, pri_t);
 
 extern void set_thread_throughput_named(thread_t,
-    thread_througput_qos_t, char );
+    thread_throughput_qos_t, char *);
 extern void set_thread_throughput(thread_t,
     thread_throughput_qos_t);
 

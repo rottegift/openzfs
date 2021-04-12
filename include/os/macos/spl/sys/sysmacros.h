@@ -114,11 +114,8 @@ extern unsigned int max_ncpus;
  * some taskq threads around maxclsyspri.
  */
 #define	minclsyspri  70 /* well below the render server and other graphics */
-#define	defclsyspri  79 /* two below the xnu kernel services */
+#define	defclsyspri  75 /* five below the xnu kernel services */
 #define	maxclsyspri  80 /* one less than normal kernel base, two less than networking etc */
-
-#define	NICE_TO_PRIO(nice)		(MAX_RT_PRIO + (nice) + 20)
-#define	PRIO_TO_NICE(prio)		((prio) - MAX_RT_PRIO - 20)
 
 /*
  * Missing macros

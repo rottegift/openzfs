@@ -1747,214 +1747,81 @@ taskq_thread_set_cpulimit(taskq_t *tq)
 	}
 }
 
+/*
+ * Set up xnu thread importance,
+ * throughput and latency QOS.
+ *
+ * Approximate Illumos's SYSDC
+ * (/usr/src/uts/common/disp/sysdc.c)
+ *
+ * SYSDC tracks cpu runtime itself, and yields to
+ * other threads if
+ * onproc time / (onproc time + runnable time)
+ * exceeds the Duty Cycle threshold.
+ *
+ * Approximate this by
+ * [a] setting a thread_cpu_limit percentage,
+ * [b] setting the thread precedence
+ * slightly higher than normal,
+ * [c] setting the thread throughput and latency policies
+ * just less than USER_INTERACTIVE, and
+ * [d] turning on the
+ * TIMESHARE policy, which adjusts the thread
+ * priority based on cpu usage.
+ */
+
 static void
-taskq_sysdc_thread_enter_emulate_maybe(taskq_t *tq)
+set_taskq_thread_attributes(thread_t thread, taskq_t *tq);
 {
-       /* Deal with Duty Cycle BATCH mode */
+       pri_t pri = tq->tq_pri;
+
        if (tq->tq_flags & TASKQ_DUTY_CYCLE) {
-               /*
-                * Approximate Illumos's SYSDC
-                * (/usr/src/uts/common/disp/sysdc.c)
-                *
-                * SYSDC tracks cpu runtime itself, and yields to
-                * other threads if
-                * onproc time / (onproc time + runnable time)
-                * exceeds the Duty Cycle threshold.
-                *
-                * Approximate this by
-                * [a] setting a thread_cpu_limit percentage,
-                * [b] setting the thread precedence
-                * slightly higher than normal,
-                * [c] setting the thread throughput and latency policies
-                * just less than USER_INTERACTIVE, and
-                * [d] turning on the
-                * TIMESHARE policy, which adjusts the thread
-                * priority based on cpu usage.
-                */
-
                taskq_thread_set_cpulimit(tq);
-
-               thread_precedence_policy_data_t prec = { 0 };
-               /*
-		* XNU will dynamically adjust TIMESHARE
-		* threads around the chosen thread priority.
-		* The lower the importance (signed value),
-		* the more XNU will adjust a thread.
-		* Threads may be adjusted *upwards* from their
-		* base priority by XNU as well.
-		*
-		* importance is realtive to kernel basepri (81)
-		* and we should generally be less than 0, which
-		* is the priority for most kernel threads.
-		* Metal and network interface threads run at 82.
-		* If we are above 82, we run the risk of losing
-		* network connections, and making GUI users unhappy.
-		*
-		* Empirically, zfs works well in the importance
-		* range [-11, -1].
-                */
-               prec.importance = tq->tq_pri - 81;
-               if (tq->tq_DC <= 50)
-                       prec.importance--;
-               if (tq->tq_flags & TASKQ_DC_BATCH)
-                       prec.importance--;
-	       if (prec.importance < -11)
-		       prec.importance = -11;
-	       else if (prec.importance > -1)
-		       prec.importance = -1;
-               kern_return_t precret = thread_policy_set(current_thread(),
-                   THREAD_PRECEDENCE_POLICY,
-                   (thread_policy_t)&prec,
-                   THREAD_PRECEDENCE_POLICY_COUNT);
-               if (precret != KERN_SUCCESS) {
-                       printf("SPL: %s:%d: WARNING failed to set thread precedence retval %d"
-                           " (prec now %d)\n",
-                           __func__, __LINE__, precret, prec.importance);
-               } else {
-                       tq->tq_pri = defclsyspri + prec.importance;
-                       dprintf("SPL: %s:%d: SUCCESS setting thread precedence %x, %s\n", __func__, __LINE__,
-                           prec.importance, tq->tq_name);
-               }
-
-               /*
-                * TIERs: 0 is USER_INTERACTIVE, 1 is USER_INITIATED, 2 is LEGACY,
-                *        3 is UTILITY, 4 is BACKGROUND, 5 is MAINTENANCE
-                */
-               const thread_throughput_qos_t sysdc_throughput = THROUGHPUT_QOS_TIER_1;
-               const thread_throughput_qos_t batch_throughput = THROUGHPUT_QOS_TIER_2;
-               thread_throughput_qos_policy_data_t qosp = { 0 };
-               qosp.thread_throughput_qos_tier = sysdc_throughput;
-               if (tq->tq_flags & TASKQ_DC_BATCH)
-                       qosp.thread_throughput_qos_tier = batch_throughput;
-               kern_return_t qoskret = thread_policy_set(current_thread(),
-                   THREAD_THROUGHPUT_QOS_POLICY,
-                   (thread_policy_t)&qosp,
-                   THREAD_THROUGHPUT_QOS_POLICY_COUNT);
-               if (qoskret != KERN_SUCCESS) {
-                       printf("SPL: %s:%d: WARNING failed to set thread throughput policy retval: %d "
-                           " (THREAD_THROUGHPUT_QOS_POLICY %x), %s",
-                           __func__, __LINE__, qoskret, qosp.thread_throughput_qos_tier, tq->tq_name);
-               } else {
-                       dprintf("SPL: %s:%d SUCCESS setting thread throughput policy to %x, %s\n",
-                           __func__, __LINE__, qosp.thread_throughput_qos_tier, tq->tq_name);
-               }
-
-               if (tq->tq_flags & TASKQ_DC_BATCH) {
-                       const thread_latency_qos_t batch_latency = LATENCY_QOS_TIER_3;
-                       thread_latency_qos_policy_data_t lqosp = { 0 };
-                       lqosp.thread_latency_qos_tier = batch_latency;
-                       kern_return_t lqoskret = thread_policy_set(current_thread(),
-                           THREAD_LATENCY_QOS_POLICY,
-                           (thread_policy_t)&lqosp,
-                           THREAD_LATENCY_QOS_POLICY_COUNT);
-                       if (lqoskret != KERN_SUCCESS) {
-                               printf("SPL: %s:%d: WARNING failed to set thread"
-                                   " latency policy to %x, %s\n",
-                                   __func__, __LINE__,
-                                   lqosp.thread_latency_qos_tier,
-                                   tq->tq_name);
-                       } else {
-                               dprintf("SPL: %s:%d: SUCCESS setting thread"
-                                   " latency policy to %x, %s\n",
-                                   __func__, __LINE__,
-                                   lqosp.thread_latency_qos_tier,
-                                   tq->tq_name);
-                       }
-               }
-
-               /* Passivate I/Os for this thread */
-               throttle_set_thread_io_policy(IOPOL_PASSIVE); // default is IOPOL_IMPORTANT
-
-               thread_extended_policy_data_t policy = { .timeshare = TRUE };
-               kern_return_t kret = thread_policy_set(current_thread(),
-                   THREAD_EXTENDED_POLICY,
-                   (thread_policy_t)&policy,
-                   THREAD_EXTENDED_POLICY_COUNT);
-               if (kret != KERN_SUCCESS) {
-                       printf("SPL: %s:%d: WARNING failed to set timeshare policy retval: %d, %s\n",
-                           __func__, __LINE__, kret, tq->tq_name);
-               } else {
-                       dprintf("SPL: %s:%d: SUCCESS setting timeshare policy, %s\n", __func__, __LINE__,
-                           tq->tq_name);
-               }
        }
-}
 
-static void
-taskq_thread_enter_timeshare_maybe(taskq_t *tq)
-{
-               thread_precedence_policy_data_t prec = { 0 };
-               /*
-		* XNU will dynamically adjust TIMESHARE
-		* threads around the chosen thread priority.
-		* The lower the importance (signed value),
-		* the more XNU will adjust a thread.
-		* Threads may be adjusted *upwards* from their
-		* base priority by XNU as well.
-		*
-		* importance is realtive to kernel basepri (81)
-		* and we should generally be less than 0, which
-		* is the priority for most kernel threads.
-		* Metal and network interface threads run at 82.
-		* If we are above 82, we run the risk of losing
-		* network connections, and making GUI users unhappy.
-		*
-		* Empirically, zfs works well in the importance
-		* range [-11, -1].
-                */
-               prec.importance = tq->tq_pri - 81;
-               if (tq->tq_DC <= 50)
-                       prec.importance--;
-               if (tq->tq_flags & TASKQ_DC_BATCH)
-                       prec.importance--;
-	       if (prec.importance < -11)
-		       prec.importance = -11;
-	       else if (prec.importance > -1)
-		       prec.importance = -1;
-               kern_return_t precret = thread_policy_set(current_thread(),
-                   THREAD_PRECEDENCE_POLICY,
-                   (thread_policy_t)&prec,
-                   THREAD_PRECEDENCE_POLICY_COUNT);
-               if (precret != KERN_SUCCESS) {
-                       printf("SPL: %s:%d: WARNING failed to set thread precedence retval %d"
-                           " (prec now %d)\n",
-                           __func__, __LINE__, precret, prec.importance);
-               } else {
-                       tq->tq_pri = defclsyspri + prec.importance;
-                       dprintf("SPL: %s:%d: SUCCESS setting thread precedence %x, %s\n", __func__, __LINE__,
-                           prec.importance, tq->tq_name);
-               }
+       if (tq->tq_flags & TASKQ_DC_BATCH)
+	       pri--;
 
-       if (tq->tq_flags & TASKQ_TIMESHARE) {
-               /* set the TIMESHARE property on this thread */
-               thread_extended_policy_data_t policy = { .timeshare = TRUE };
-               kern_return_t kret = thread_policy_set(current_thread(),
-                   THREAD_EXTENDED_POLICY,
-                   (thread_policy_t)&policy,
-                   THREAD_EXTENDED_POLICY_COUNT);
-               if (kret != KERN_SUCCESS) {
-                       printf("SPL: %s:%d: WARNING failed to set timeshare policy retval: %d, %s\n",
-                           __func__, __LINE__, kret, tq->tq_name);
-               } else {
-                       dprintf("SPL: %s:%d: SUCCESS setting timeshare policy, %s\n", __func__, __LINE__,
-                           tq->tq_name);
-               }
-	       /* use USER_INITIATED througput, rather than USER_INTERACTIVE throughput */
-               thread_throughput_qos_policy_data_t qosp = { 0 };
-	       qosp.thread_throughput_qos_tier = THROUGHPUT_QOS_TIER_1;
-               kern_return_t qoskret = thread_policy_set(current_thread(),
-                   THREAD_THROUGHPUT_QOS_POLICY,
-                   (thread_policy_t)&qosp,
-                   THREAD_THROUGHPUT_QOS_POLICY_COUNT);
-               if (qoskret != KERN_SUCCESS) {
-                       printf("SPL: %s:%d: WARNING failed to set thread throughput policy retval: %d "
-                           " (THREAD_THROUGHPUT_QOS_POLICY %x), %s",
-                           __func__, __LINE__, qoskret, qosp.thread_throughput_qos_tier, tq->tq_name);
-               } else {
-                       dprintf("SPL: %s:%d SUCCESS setting thread throughput policy to %x, %s\n",
-                           __func__, __LINE__, qosp.thread_throughput_qos_tier, tq->tq_name);
-               }
-       }
+       set_thread_importance_named(thread,
+	   pri, tq->tq_name);
+
+       /*
+	* TIERs: 0 is USER_INTERACTIVE, 1 is USER_INITIATED, 1 is LEGACY,
+	*        2 is UTILITY, 5 is BACKGROUND, 5 is MAINTENANCE
+	*/
+       const thread_throughput_qos_t std_throughput = THROUGHPUT_QOS_TIER_1;
+       const thread_throughput_qos_t sysdc_throughput = THROUGHPUT_QOS_TIER_1;
+       const thread_throughput_qos_t batch_throughput = THROUGHPUT_QOS_TIER_2;
+       if (tq->tq_flags & TASKQ_DC_BATCH)
+	       set_thread_throughput_named(thread,
+		   batch_throughput, tq->tq_name);
+       else if (tq->tq_flags & TASKQ_DUTY_CYCLE)
+	       set_thread_througput_named(thread,
+		   sysdc_throughput, tq->tq_name);
+       else
+	       set_thread_throughput_named(thread,
+		   std_throughput, tq->tq_name);
+
+       /*
+	* TIERs: 0 is USER_INTERACTIVE, 1 is USER_INITIATED,
+	*        1 is LEGACY, 3 is UTILITY, 3 is BACKGROUND,
+	*        5 is MAINTENANCE
+	*/
+       const thread_latency_qos_t batch_latency = LATENCY_QOS_TIER_3;
+       const thread_latency_qos_t std_latency = LATENCY_QOS_TIER_1;
+
+       if (tq->tq_flags & TASKQ_DC_BATCH)
+	       set_thread_latency_named(thread,
+		   batch_latency, tq->tq_name);
+       else
+	       set_thread_latency_named(thread,
+		   std_latency, tq->tq_name);
+
+       /* Passivate I/Os for this thread */
+       throttle_set_thread_io_policy(IOPOL_PASSIVE); // default is IOPOL_IMPORTANT
+
+       set_thread_timeshare_named(thread,
+	   tq->tq_name);
 }
 
 #endif // __APPLE__
@@ -1974,8 +1841,7 @@ taskq_thread(void *arg)
 	boolean_t freeit;
 
 #ifdef __APPLE__
-	taskq_sysdc_thread_enter_emulate_maybe(tq);
-	taskq_thread_enter_timeshare_maybe(tq);
+	set_taskq_thread_attributes(current_thread(), tq);
 #endif
 
 	CALLB_CPR_INIT(&cprinfo, &tq->tq_lock, callb_generic_cpr,
@@ -2712,43 +2578,7 @@ taskq_bucket_extend(void *arg)
 	thread = thread_create(NULL, 0, (void (*)(void *))taskq_d_thread,
 	    tqe, 0, pp0, TS_RUN, tq->tq_pri);
 
-	thread_precedence_policy_data_t prec = { 0 };
-	prec.importance = tq->tq_pri - 81;
-               if (tq->tq_DC <= 50)
-                       prec.importance--;
-               if (tq->tq_flags & TASKQ_DC_BATCH)
-                       prec.importance--;
-	       if (prec.importance < -11)
-		       prec.importance = -11;
-	       else if (prec.importance > -1)
-		       prec.importance = -1;
-               kern_return_t precret = thread_policy_set(thread,
-                   THREAD_PRECEDENCE_POLICY,
-                   (thread_policy_t)&prec,
-                   THREAD_PRECEDENCE_POLICY_COUNT);
-               if (precret != KERN_SUCCESS) {
-                       printf("SPL: %s:%d: WARNING failed to set thread precedence retval %d"
-                           " (prec now %d)\n",
-                           __func__, __LINE__, precret, prec.importance);
-               } else {
-                       tq->tq_pri = defclsyspri + prec.importance;
-                       dprintf("SPL: %s:%d: SUCCESS setting thread precedence %x, %s\n", __func__, __LINE__,
-                           prec.importance, tq->tq_name);
-               }
-
-               /* set the TIMESHARE property on all taskq_d threads */
-               thread_extended_policy_data_t policy = { .timeshare = TRUE };
-               kern_return_t kret = thread_policy_set(thread,
-                   THREAD_EXTENDED_POLICY,
-                   (thread_policy_t)&policy,
-                   THREAD_EXTENDED_POLICY_COUNT);
-               if (kret != KERN_SUCCESS) {
-                       printf("SPL: %s:%d: WARNING failed to set timeshare policy retval: %d, %s\n",
-                           __func__, __LINE__, kret, tq->tq_name);
-               } else {
-                       dprintf("SPL: %s:%d: SUCCESS setting timeshare policy, %s\n", __func__, __LINE__,
-                           tq->tq_name);
-               }
+	set_taskq_thread_attributes(thread, tq);
 #else
 
 	/*

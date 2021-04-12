@@ -99,6 +99,23 @@ extern void spl_thread_exit(void);
 
 extern kthread_t *spl_current_thread(void);
 
+extern void set_thread_inmportance_named(thread_t, pri_t, char *);
+extern void set_thread_importance(thread_t, pri_t);
+
+extern void set_thread_throughput_named(thread_t,
+    thread_througput_qos_t, char );
+extern void set_thread_throughput(thread_t,
+    thread_throughput_qos_t);
+
+extern void set_thread_latency_named(thread_t,
+    thread_latency_qos_t, char *);
+extern void set_thread_latency(thread_t,
+    thread_latency_qos_t);
+
+extern void set_thread_timeshare_named(thread_t,
+    char *);
+extern void set_thread_timeshare(thread_t);
+
 #define	delay osx_delay
 extern void osx_delay(int);
 

@@ -76,20 +76,23 @@ typedef void (*thread_func_t)(void *);
 #ifdef SPL_DEBUG_THREAD
 
 #define	thread_create(A, B, C, D, E, F, G, H) \
-    spl_thread_create(A, B, C, D, E, G, __FILE__, __LINE__, H)
+    spl_thread_create_named(__FILE__, A, B, C, D, E, G, __FILE__, __LINE__, H)
 #define	thread_create_named(name, A, B, C, D, E, F, G, H)	\
-    spl_thread_create(A, B, C, D, E, G, __FILE__, __LINE__, H)
-extern kthread_t *spl_thread_create(caddr_t stk, size_t stksize,
+    spl_thread_create_named(name, A, B, C, D, E, G, __FILE__, __LINE__, H)
+
+extern kthread_t *spl_thread_create_named(char *name,
+    caddr_t stk, size_t stksize,
     void (*proc)(void *), void *arg, size_t len, /* proc_t *pp, */ int state,
     char *, int, pri_t pri);
 
 #else
 
 #define	thread_create(A, B, C, D, E, F, G, H) \
-    spl_thread_create(A, B, C, D, E, G, H)
+    spl_thread_create_named(__FILE__, A, B, C, D, E, G, H)
 #define	thread_create_named(name, A, B, C, D, E, F, G, H)	\
-    spl_thread_create(A, B, C, D, E, G, H)
-extern kthread_t *spl_thread_create(caddr_t stk, size_t stksize,
+    spl_thread_create_named(name, A, B, C, D, E, G, H)
+extern kthread_t *spl_thread_create_named(char *name,
+    caddr_t stk, size_t stksize,
     void (*proc)(void *), void *arg, size_t len, /* proc_t *pp, */ int state,
     pri_t pri);
 

@@ -38,7 +38,8 @@
 uint64_t zfs_threads = 0;
 
 kthread_t *
-spl_thread_create(
+spl_thread_create_named(
+        char *name,
 	caddr_t stk,
 	size_t stksize,
 	void (*proc)(void *),
@@ -66,6 +67,11 @@ spl_thread_create(
 		return (NULL);
 
 	set_thread_importance_named(thread, pri, "anonymous new zfs thread");
+
+	if (name == NULL)
+		name = "unnamed zfs thread";
+
+	thread_set_thread_name(thread, name);
 
 	thread_deallocate(thread);
 

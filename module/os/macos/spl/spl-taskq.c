@@ -1619,11 +1619,13 @@ taskq_thread_create(taskq_t *tq)
 		t = lwp_kernel_create(tq->tq_proc, taskq_thread, tq, TS_RUN,
 		    tq->tq_pri);
 #else
-		t = thread_create(NULL, 0, taskq_thread, tq, 0, tq->tq_proc,
+		t = thread_create_named(tq->tq_name,
+		    NULL, 0, taskq_thread, tq, 0, tq->tq_proc,
 		    TS_RUN, tq->tq_pri);
 #endif
 	} else {
-		t = thread_create(NULL, 0, taskq_thread, tq, 0, tq->tq_proc,
+		t = thread_create_named(tq->tq_name,
+		    NULL, 0, taskq_thread, tq, 0, tq->tq_proc,
 		    TS_RUN, tq->tq_pri);
 	}
 
@@ -2575,7 +2577,8 @@ taskq_bucket_extend(void *arg)
 	 * for it to be initialized (below).
 	 */
 	tqe->tqent_thread = (kthread_t *)0xCEDEC0DE;
-	thread = thread_create(NULL, 0, (void (*)(void *))taskq_d_thread,
+	thread = thread_create_named(tq->tq_name,
+	    NULL, 0, (void (*)(void *))taskq_d_thread,
 	    tqe, 0, pp0, TS_RUN, tq->tq_pri);
 
 	set_taskq_thread_attributes(thread, tq);

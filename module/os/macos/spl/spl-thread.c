@@ -39,19 +39,18 @@ uint64_t zfs_threads = 0;
 
 kthread_t *
 spl_thread_create_named(
-        char *name,
-	caddr_t stk,
-	size_t stksize,
-	void (*proc)(void *),
-	void *arg,
-	size_t len,
-	/* struct proc *pp, */
-	int state,
+    char *name,
+    caddr_t stk,
+    size_t stksize,
+    void (*proc)(void *),
+    void *arg,
+    size_t len,
+    int state,
 #ifdef SPL_DEBUG_THREAD
-	char *filename,
-	int line,
+    char *filename,
+    int line,
 #endif
-	pri_t pri)
+    pri_t pri)
 {
 	kern_return_t result;
 	thread_t thread;
@@ -120,7 +119,7 @@ extern void throttle_set_thread_io_policy(int priority);
 void
 spl_throttle_set_thread_io_policy(int priority)
 {
-       throttle_set_thread_io_policy(priority);
+	throttle_set_thread_io_policy(priority);
 }
 
 
@@ -214,7 +213,8 @@ void
 set_thread_throughput(thread_t thread,
     thread_throughput_qos_t throughput)
 {
-	set_thread_throughput_named(thread, throughput, "anonymous zfs function");
+	set_thread_throughput_named(thread, throughput,
+	    "anonymous zfs function");
 }
 
 void

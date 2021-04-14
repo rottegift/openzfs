@@ -521,7 +521,7 @@ taskq_t *system_delay_taskq = NULL;
  *	system_taskq_size * max_ncpus
  */
 #ifdef __APPLE__
-#define SYSTEM_TASKQ_SIZE 128
+#define	SYSTEM_TASKQ_SIZE 128
 #else
 #define	SYSTEM_TASKQ_SIZE 64
 #endif
@@ -1705,9 +1705,10 @@ taskq_thread_wait(taskq_t *tq, kmutex_t *mx, kcondvar_t *cv,
  * take care of the bookkeeping and the amount of "break",
  * which are the other Illumos tunables.
  */
-#define CPULIMIT_INTERVAL (MSEC2NSEC(100ULL))
-#define THREAD_CPULIMIT_BLOCK 0x1
-extern int thread_set_cpulimit(int action, uint8_t percentage, uint64_t interval_ns);
+#define	CPULIMIT_INTERVAL (MSEC2NSEC(100ULL))
+#define	THREAD_CPULIMIT_BLOCK 0x1
+extern int thread_set_cpulimit(int action,
+    uint8_t percentage, uint64_t interval_ns);
 
 static void
 taskq_thread_set_cpulimit(taskq_t *tq)
@@ -1715,7 +1716,7 @@ taskq_thread_set_cpulimit(taskq_t *tq)
 	if (tq->tq_flags & TASKQ_DUTY_CYCLE) {
 		ASSERT3U(tq->tq_DC, <=, 100);
 		ASSERT3U(tq->tq_DC, >, 0);
-		const uint8_t inpercent = MIN(100,MAX(tq->tq_DC,1));
+		const uint8_t inpercent = MIN(100, MAX(tq->tq_DC, 1));
 		const uint64_t interval_ns = CPULIMIT_INTERVAL;
 		/*
 		 * deflate tq->tq_DC (a percentage of cpu) by the
@@ -1743,7 +1744,8 @@ taskq_thread_set_cpulimit(taskq_t *tq)
 		    percent, interval_ns);
 
 		if (ret != KERN_SUCCESS) {
-			printf("SPL: %s:%d: WARNING thread_set_cpulimit returned %d\n",
+			printf("SPL: %s:%d: WARNING thread_set_cpulimit"
+			    " returned %d\n",
 			    __func__, __LINE__, ret);
 		}
 	}
@@ -1775,55 +1777,58 @@ taskq_thread_set_cpulimit(taskq_t *tq)
 static void
 set_taskq_thread_attributes(thread_t thread, taskq_t *tq)
 {
-       pri_t pri = tq->tq_pri;
+	pri_t pri = tq->tq_pri;
 
-       if (tq->tq_flags & TASKQ_DUTY_CYCLE) {
-               taskq_thread_set_cpulimit(tq);
-       }
+	if (tq->tq_flags & TASKQ_DUTY_CYCLE) {
+		taskq_thread_set_cpulimit(tq);
+	}
 
-       if (tq->tq_flags & TASKQ_DC_BATCH)
-	       pri--;
+	if (tq->tq_flags & TASKQ_DC_BATCH)
+		pri--;
 
-       set_thread_importance_named(thread,
-	   pri, tq->tq_name);
+	set_thread_importance_named(thread,
+	    pri, tq->tq_name);
 
-       /*
-	* TIERs: 0 is USER_INTERACTIVE, 1 is USER_INITIATED, 1 is LEGACY,
-	*        2 is UTILITY, 5 is BACKGROUND, 5 is MAINTENANCE
-	*/
-       const thread_throughput_qos_t std_throughput = THROUGHPUT_QOS_TIER_1;
-       const thread_throughput_qos_t sysdc_throughput = THROUGHPUT_QOS_TIER_1;
-       const thread_throughput_qos_t batch_throughput = THROUGHPUT_QOS_TIER_2;
-       if (tq->tq_flags & TASKQ_DC_BATCH)
-	       set_thread_throughput_named(thread,
-		   batch_throughput, tq->tq_name);
-       else if (tq->tq_flags & TASKQ_DUTY_CYCLE)
-	       set_thread_throughput_named(thread,
-		   sysdc_throughput, tq->tq_name);
-       else
-	       set_thread_throughput_named(thread,
-		   std_throughput, tq->tq_name);
+	/*
+	 * TIERs: 0 is USER_INTERACTIVE, 1 is USER_INITIATED, 1 is LEGACY,
+	 *        2 is UTILITY, 5 is BACKGROUND, 5 is MAINTENANCE
+	 */
+	const thread_throughput_qos_t std_throughput = THROUGHPUT_QOS_TIER_1;
+	const thread_throughput_qos_t sysdc_throughput = THROUGHPUT_QOS_TIER_1;
+	const thread_throughput_qos_t batch_throughput = THROUGHPUT_QOS_TIER_2;
+	if (tq->tq_flags & TASKQ_DC_BATCH)
+		set_thread_throughput_named(thread,
+		    batch_throughput, tq->tq_name);
+	else if (tq->tq_flags & TASKQ_DUTY_CYCLE)
+		set_thread_throughput_named(thread,
+		    sysdc_throughput, tq->tq_name);
+	else
+		set_thread_throughput_named(thread,
+		    std_throughput, tq->tq_name);
 
-       /*
-	* TIERs: 0 is USER_INTERACTIVE, 1 is USER_INITIATED,
-	*        1 is LEGACY, 3 is UTILITY, 3 is BACKGROUND,
-	*        5 is MAINTENANCE
-	*/
-       const thread_latency_qos_t batch_latency = LATENCY_QOS_TIER_3;
-       const thread_latency_qos_t std_latency = LATENCY_QOS_TIER_1;
+	/*
+	 * TIERs: 0 is USER_INTERACTIVE, 1 is USER_INITIATED,
+	 *        1 is LEGACY, 3 is UTILITY, 3 is BACKGROUND,
+	 *        5 is MAINTENANCE
+	 */
+	const thread_latency_qos_t batch_latency = LATENCY_QOS_TIER_3;
+	const thread_latency_qos_t std_latency = LATENCY_QOS_TIER_1;
 
-       if (tq->tq_flags & TASKQ_DC_BATCH)
-	       set_thread_latency_named(thread,
-		   batch_latency, tq->tq_name);
-       else
-	       set_thread_latency_named(thread,
-		   std_latency, tq->tq_name);
+	if (tq->tq_flags & TASKQ_DC_BATCH)
+		set_thread_latency_named(thread,
+		    batch_latency, tq->tq_name);
+	else
+		set_thread_latency_named(thread,
+		    std_latency, tq->tq_name);
 
-       /* Passivate I/Os for this thread */
-       throttle_set_thread_io_policy(IOPOL_PASSIVE); // default is IOPOL_IMPORTANT
+	/*
+	 * Passivate I/Os for this thread,
+	 * default = IOPOL_IMPORTANT
+	 */
+	throttle_set_thread_io_policy(IOPOL_PASSIVE);
 
-       set_thread_timeshare_named(thread,
-	   tq->tq_name);
+	set_thread_timeshare_named(thread,
+	    tq->tq_name);
 }
 
 #endif // __APPLE__
@@ -2239,7 +2244,8 @@ taskq_create_common(const char *name, int instance, int nthreads, pri_t pri,
 
 #ifdef __APPLE__
 	/* Cannot have DC_BATCH or DUTY_CYCLE with TIMESHARE */
-	IMPLY((flags & (TASKQ_DUTY_CYCLE|TASKQ_DC_BATCH)), !(flags & TASKQ_TIMESHARE));
+	IMPLY((flags & (TASKQ_DUTY_CYCLE|TASKQ_DC_BATCH)),
+	    !(flags & TASKQ_TIMESHARE));
 #endif
 
 	ASSERT(proc != NULL);

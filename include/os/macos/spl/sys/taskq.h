@@ -59,8 +59,8 @@ struct taskq_ent;
 #define	TASKQ_DC_BATCH		0x0010	/* Taskq uses SDC in batch mode */
 
 #ifdef __APPLE__
-#define TASKQ_TIMESHARE         0x0020  /* Special macOS thread deprioritization */
-#define TASKQ_REALLY_DYNAMIC    0x0040  /* don't filter out TASKQ_DYNAMIC */
+#define	TASKQ_TIMESHARE		0x0020	/* macOS dynamic task priority */
+#define	TASKQ_REALLY_DYNAMIC	0x0040	/* don't filter out TASKQ_DYNAMIC */
 #endif
 
 /*

@@ -7665,7 +7665,7 @@ arc_init(void)
 
 #ifdef __APPLE__
 #ifndef _KERNEL
-#define TASKQ_REALLY_DYNAMIC 0x0
+#define	TASKQ_REALLY_DYNAMIC 0x0
 #endif
 	arc_prune_taskq = taskq_create("arc_prune", 100, defclsyspri,
 	    boot_ncpus, INT_MAX, TASKQ_PREPOPULATE | TASKQ_DYNAMIC |

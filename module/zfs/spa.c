@@ -1038,7 +1038,7 @@ spa_taskqs_init(spa_t *spa, zio_type_t t, zio_taskq_type_t q)
 			}
 			/* macOS cannot handle TASKQ_DYNAMIC zio taskqs */
 
-			if((flags & (TASKQ_DC_BATCH|TASKQ_DUTY_CYCLE))==0)
+			if ((flags & (TASKQ_DC_BATCH|TASKQ_DUTY_CYCLE)) == 0)
 				flags |= TASKQ_TIMESHARE;
 
 			if (flags & TASKQ_DYNAMIC) {

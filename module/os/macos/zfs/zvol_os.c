@@ -1095,7 +1095,8 @@ zvol_init(void)
 	int threads = MIN(MAX(zvol_threads, 1), 1024);
 
 	zvol_taskq = taskq_create(ZVOL_DRIVER, threads, maxclsyspri-4,
-	    threads * 2, INT_MAX, TASKQ_PREPOPULATE | TASKQ_DYNAMIC | TASKQ_REALLY_DYNAMIC);
+	    threads * 2, INT_MAX, TASKQ_PREPOPULATE
+	    | TASKQ_DYNAMIC | TASKQ_REALLY_DYNAMIC);
 	if (zvol_taskq == NULL) {
 		return (-ENOMEM);
 	}

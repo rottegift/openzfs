@@ -249,9 +249,6 @@ extern errno_t VOP_SYMLINK  (struct vnode *, struct vnode **,
 void spl_vnode_fini(void);
 int  spl_vnode_init(void);
 
-extern void spl_cache_purgevfs(struct mount *mp);
-#define	cache_purgevfs spl_cache_purgevfs
-
 vfs_context_t vfs_context_kernel(void);
 vfs_context_t spl_vfs_context_kernel(void);
 extern int spl_vnode_notify(struct vnode *vp, uint32_t type,

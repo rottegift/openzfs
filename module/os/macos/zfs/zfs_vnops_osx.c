@@ -178,6 +178,7 @@ zfs_findernotify_callback(mount_t mp, __unused void *arg)
 	if (vsf->f_fssubtype == MNTTYPE_ZFS_SUBTYPE) {
 		vfs_context_t kernelctx = spl_vfs_context_kernel();
 		struct vnode *rootvp, *vp;
+		znode_t *zp = NULL;
 
 		/*
 		 * Since potentially other filesystems could be using "our"
@@ -226,7 +227,9 @@ zfs_findernotify_callback(mount_t mp, __unused void *arg)
 		dprintf("ZFS: findernotify %p space delta %llu\n", mp, delta);
 
 		// Grab the root zp
-		if (!VFS_ROOT(mp, 0, &rootvp)) {
+		if (zfs_zget(zfsvfs, zfsvfs->z_root, &zp) == 0) {
+
+			rootvp = ZTOV(zp);
 
 			struct componentname cn;
 			char *tmpname = ".fseventsd";

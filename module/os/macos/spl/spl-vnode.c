@@ -264,20 +264,20 @@ int spl_vn_rdwr(enum uio_rw rw, struct spl_fileproc *sfp,
     caddr_t base, ssize_t len, offset_t offset, enum uio_seg seg,
     int ioflag, rlim64_t ulimit, cred_t *cr, ssize_t *residp)
 {
-        int error = 0;
-        int aresid;
+	int error = 0;
+	int aresid;
 
-        VERIFY3P(sfp->f_vnode, !=, NULL);
+	VERIFY3P(sfp->f_vnode, !=, NULL);
 
 	struct proc;
-        error = vn_rdwr(rw, sfp->f_vnode, base, len, offset, seg, ioflag,
-            cr, &aresid, (void *)sfp->f_proc);
+	error = vn_rdwr(rw, sfp->f_vnode, base, len, offset, seg, ioflag,
+	    cr, &aresid, (void *)sfp->f_proc);
 
-        if (residp) {
-                *residp = aresid;
-        }
+	if (residp) {
+		*residp = aresid;
+	}
 
-        return (error);
+	return (error);
 }
 
 /* Regular vnode vn_rdwr */

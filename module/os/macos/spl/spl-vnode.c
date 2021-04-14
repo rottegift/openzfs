@@ -101,11 +101,11 @@ VOP_LOOKUP(struct vnode *vp, struct vnode **vpp,
 	 * However, VOP_LOOKUP() is only used by OSX calls, finder and rename.
 	 * We could re-write that code to use /absolute/path.
 	 */
-	if (dvp != NULL) {
+	if (vp != NULL) {
 		int result, len;
 
 		len = MAXPATHLEN;
-		result = vn_getpath(dvp, path, &len);
+		result = vn_getpath(vp, path, &len);
 		if (result != 0)
 			return (result);
 
@@ -259,35 +259,25 @@ releasef(int fd)
  * getf()/releasef() IO handler.
  */
 #undef vn_rdwr
-extern int vn_rdwr(enum uio_rw rw, struct vnode *vp, caddr_t base, int len,
-	off_t offset, enum uio_seg segflg, int ioflg, kauth_cred_t cred,
-	int *aresid, struct proc *p);
 
-int spl_vn_rdwr(enum uio_rw rw,	struct spl_fileproc *sfp,
+int spl_vn_rdwr(enum uio_rw rw, struct spl_fileproc *sfp,
     caddr_t base, ssize_t len, offset_t offset, enum uio_seg seg,
     int ioflag, rlim64_t ulimit, cred_t *cr, ssize_t *residp)
 {
-	uio_t *auio;
-	int spacetype;
-	int error = 0;
-	vfs_context_t vctx;
+        int error = 0;
+        int aresid;
 
-	VERIFY3P(sfp->f_vnode, !=, NULL);
+        VERIFY3P(sfp->f_vnode, !=, NULL);
 
-	error = vn_rdwr(rw, sfp->f_vnode, base, len, offset, seg, ioflag,
-	    cr, &aresid, sfp->f_proc);
+	struct proc;
+        error = vn_rdwr(rw, sfp->f_vnode, base, len, offset, seg, ioflag,
+            cr, &aresid, (void *)sfp->f_proc);
 
-	if (residp) {
-		*residp = uio_resid(auio);
-	} else {
-		if (uio_resid(auio) && error == 0)
-			error = EIO;
-	}
+        if (residp) {
+                *residp = aresid;
+        }
 
-	uio_free(auio);
-	vfs_context_rele(vctx);
-
-	return (error);
+        return (error);
 }
 
 /* Regular vnode vn_rdwr */

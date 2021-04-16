@@ -47,6 +47,8 @@
 // ZFS uses "typedef struct vnode vnode_t".
 #undef uio_t
 #undef vnode_t
+#undef	proc_t
+#define	proc_t struct proc *
 #include_next <sys/vnode.h>
 #undef proc_t
 #define	proc_t struct proc
@@ -242,10 +244,6 @@ extern errno_t VOP_SYMLINK  (struct vnode *, struct vnode **,
 
 void spl_vnode_fini(void);
 int  spl_vnode_init(void);
-
-
-extern int spl_vfs_root(mount_t mount, struct vnode **vp);
-#define	VFS_ROOT(V, L, VP) spl_vfs_root((V), (VP))
 
 extern void cache_purgevfs(mount_t mp);
 

@@ -86,7 +86,7 @@ errno_t VNOP_LOOKUP(struct vnode *, struct vnode **,
     struct componentname *, vfs_context_t);
 
 errno_t
-VOP_LOOKUP(struct vnode *vp, struct vnode **vpp,
+VOP_LOOKUP(struct vnode *dvp, struct vnode **vpp,
     struct componentname *cn, vfs_context_t ct)
 {
 	char path[MAXPATHLEN];

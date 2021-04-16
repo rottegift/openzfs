@@ -90,32 +90,16 @@ errno_t
 VOP_LOOKUP(struct vnode *dvp, struct vnode **vpp,
     struct componentname *cn, vfs_context_t ct)
 {
-	char path[MAXPATHLEN];
-	char *lookup_name = cn->cn_nameptr;
+	return (VNOP_LOOKUP(vp, vpp, cn, ct));
+}
 
-	/*
-	 * Lookup a name, to get vnode.
-	 * If dvp is NULL, and it uses full path, just call vnode_lookup().
-	 * If dvp is supplied, we need to build path (vnode_lookupat() is
-	 * private.exports)
-	 * However, VOP_LOOKUP() is only used by OSX calls, finder and rename.
-	 * We could re-write that code to use /absolute/path.
-	 */
-	if (dvp != NULL) {
-		int result, len;
+#undef VFS_ROOT
 
-		len = MAXPATHLEN;
-		result = vn_getpath(dvp, path, &len);
-		if (result != 0)
-			return (result);
-
-		strlcat(path, "/", MAXPATHLEN);
-		strlcat(path, cn->cn_nameptr, MAXPATHLEN);
-
-		lookup_name = path;
-	}
-
-	return (vnode_lookup(lookup_name, 0, vpp, ct));
+extern int VFS_ROOT(mount_t, struct vnode **, vfs_context_t);
+int
+spl_vfs_root(mount_t mount, struct vnode **vp)
+{
+	return (VFS_ROOT(mount, vp, vfs_context_current()));
 }
 
 void

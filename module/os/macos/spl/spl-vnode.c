@@ -90,7 +90,7 @@ errno_t
 VOP_LOOKUP(struct vnode *dvp, struct vnode **vpp,
     struct componentname *cn, vfs_context_t ct)
 {
-	return (VNOP_LOOKUP(vp, vpp, cn, ct));
+	return (VNOP_LOOKUP(dvp, vpp, cn, ct));
 }
 
 #undef VFS_ROOT

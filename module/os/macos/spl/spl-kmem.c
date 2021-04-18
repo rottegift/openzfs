@@ -85,6 +85,19 @@ static volatile _Atomic boolean_t spl_free_fast_pressure = FALSE;
 static _Atomic bool spl_free_maybe_reap_flag = false;
 static _Atomic uint64_t spl_free_last_pressure = 0;
 
+/*
+ * variables informed by "pure"  mach_vm_pressure interface
+ *
+ * non-atomic, non-volatile initially, although
+ * they will be used to generate spl_free and friends
+ *
+ * osfmk/vm/vm_pageout.c: "We don't need fully
+ * accurate monitoring anyway..."
+ */
+static uint32_t spl_vm_pages_reclaimed = 0;
+static uint32_t spl_vm_pages_wanted = 0;
+static uint32_t spl_vm_pressure_level = 0;
+
 // Start and end address of kernel memory
 extern vm_offset_t virtual_space_start;
 extern vm_offset_t virtual_space_end;
@@ -554,6 +567,10 @@ typedef struct spl_stats {
 	kstat_named_t spl_arc_reclaim_avoided;
 
 	kstat_named_t kmem_free_to_slab_when_fragmented;
+
+	kstat_named_t spl_vm_pages_reclaimed;
+	kstat_named_t spl_vm_pages_wanted;
+	kstat_named_t spl_vm_pressure_level;
 } spl_stats_t;
 
 static spl_stats_t spl_stats = {
@@ -618,6 +635,9 @@ static spl_stats_t spl_stats = {
 	{"spl_arc_reclaim_avoided", KSTAT_DATA_UINT64},
 
 	{"kmem_free_to_slab_when_fragmented", KSTAT_DATA_UINT64},
+	{"spl_vm_pages_reclaimed", KSTAT_DATA_UINT64},
+	{"spl_vm_pages_wanted", KSTAT_DATA_UINT64},
+	{"spl_vm_pressure_level", KSTAT_DATA_UINT64},
 };
 
 static kstat_t *spl_ksp = 0;
@@ -4193,7 +4213,6 @@ kmem_cache_fini()
 	list_destroy(&freelist);
 }
 
-
 // this is intended to substitute for kmem_avail() in arc.c
 int64_t
 spl_free_wrapper(void)
@@ -4432,6 +4451,63 @@ spl_free_thread()
 		last_spl_free = spl_free;
 
 		new_spl_free = 0LL;
+
+		/* Ask Mach about pressure */
+
+		/*
+		 * Don't wait for pressure, just report back
+		 * how much has changed while we were asleep
+		 * (cf. the duration of cv_timedwait_hires
+		 * at justwait: below -- 10 msec is an eternity
+		 * on most hardware, and the osfmk/vm/vm_pageout.c
+		 * code is linear in the nsecs_wanted parameter
+		 *
+		 */
+
+		uint32_t pages_reclaimed = 0;
+		uint32_t pages_wanted = 0;
+		kern_return_t kr_mon =
+		    mach_vm_pressure_monitor(false,
+		    MSEC2NSEC(10),
+		    &pages_reclaimed,
+		    &pages_wanted);
+
+		if (kr_mon == KERN_SUCCESS) {
+			spl_vm_pages_reclaimed =
+			    pages_reclaimed;
+			spl_vm_pages_wanted =
+			    pages_wanted;
+		} else {
+			printf("%s:%d : mach_vm_pressure_monitor"
+			    " returned error %d, keeping old"
+			    " values reclaimed %u wanted %u\n",
+			    __FILE__, __LINE__,
+			    spl_vm_pages_reclaimed,
+			    spl_vm_pages_wanted);
+		}
+
+		/*
+		 * Don't wait for pressure, just report
+		 * back the pressure level
+		 */
+
+		uint32_t pressure_level = 0;
+		kr_mon = mach_vm_pressure_level_monitor(false,
+		    &pressure_level);
+
+		if (kr_mon == KERN_SUCCESS) {
+			spl_vm_pressure_level =
+			    pressure_level;
+		} else if (kr_mon == KERN_FAILURE) {
+			/* optioned out of xnu, use SOS value */
+			spl_vm_pressure_level = 1001001;
+		} else {
+			printf("%s:%d : mach_vm_pressure_level_monitor"
+			    " returned unexpected error %d,"
+			    " keeping old level %d\n",
+			    __FILE__, __LINE__,
+			    kr_mon, spl_vm_pressure_level);
+		}
 
 		/*
 		 * if there is pressure that has not yet reached
@@ -5006,6 +5082,14 @@ spl_kstat_update(kstat_t *ksp, int rw)
 
 		ks->kmem_free_to_slab_when_fragmented.value.ui64 =
 		    kmem_free_to_slab_when_fragmented;
+
+		ks->spl_vm_pages_reclaimed.value.ui64 =
+		    spl_vm_pages_reclaimed;
+		ks->spl_vm_pages_wanted.value.ui64 =
+		    spl_vm_pages_wanted;
+		ks->spl_vm_pressure_level.value.ui64 =
+		    spl_vm_pressure_level;
+
 	}
 
 	return (0);

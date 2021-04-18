@@ -3295,7 +3295,7 @@ spl_minimal_physmem_p(void)
 	// we want a small bit of pressure here so that we can compete
 	// a little with the xnu buffer cache
 
-	return (!spl_minimal_physmem_p_logic() && spl_free > -1024LL);
+	return (spl_minimal_physmem_p_logic() && spl_free > -4096LL);
 }
 
 /*

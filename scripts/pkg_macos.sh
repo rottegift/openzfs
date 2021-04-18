@@ -135,6 +135,7 @@ bindir=$(dirname "$file")
 popd || fail "failed to popd"
 
 codesign_dirs="
+${WORKDIR}/Library/Extensions/zfs.kext/Contents/PlugIns/KernelExports.kext/
 ${WORKDIR}/Library/Extensions/zfs.kext/
 "
 codesign_files="
@@ -151,7 +152,7 @@ ${WORKDIR}/${bindir}/zfs_ids_to_path
 ${WORKDIR}/${bindir}/InvariantDisks
 ${WORKDIR}/${bindir}/zfs_util
 ${WORKDIR}/${bindir}/zconfigd
-${WORKDIR}/${prefix}/libexec/zfs/zpool_influxdb
+${WORKDIR}/${bindir}/zpool_influxdb
 ${WORKDIR}/${prefix}/lib/libnvpair.a
 ${WORKDIR}/${prefix}/lib/libuutil.a
 ${WORKDIR}/${prefix}/lib/libzfs.a

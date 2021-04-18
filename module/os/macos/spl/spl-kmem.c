@@ -4454,7 +4454,8 @@ spl_free_thread()
 
 		last_spl_free = spl_free;
 
-		new_spl_free = 0LL;
+		new_spl_free = total_memory -
+		    segkmem_total_mem_allocated;
 
 		/* Ask Mach about pressure */
 
@@ -4518,9 +4519,12 @@ spl_free_thread()
 		    spl_vm_pressure_level != MAGIC_PRESSURE_UNAVAILABLE) {
 			/* there is pressure */
 			lowmem = true;
-			if (spl_vm_pressure_level > 1)
+			if (spl_vm_pressure_level > 1) {
 				emergency_lowmem = true;
-			new_spl_free = -(PAGE_SIZE * spl_vm_pages_wanted);
+				if (new_spl_free > 0)
+					new_spl_free = 0;
+			}
+			new_spl_free = -(2LL * PAGE_SIZE * spl_vm_pages_wanted);
 		} else if (spl_vm_pages_wanted > 0) {
 			/* kVMPressureNormal but pages wanted */
 			/* XXX : hysteresis maintained below */
@@ -4530,7 +4534,13 @@ spl_free_thread()
 			 * No pressure. Xnu has freed up some memory
 			 * which we can use.
 			 */
-			new_spl_free += PAGE_SIZE * spl_vm_pages_reclaimed;
+			if (spl_vm_pages_reclaimed)
+				new_spl_free += PAGE_SIZE *
+				    spl_vm_pages_reclaimed;
+			else {
+				/* grow a little every pressure-free pass */
+				new_spl_free += 1024LL*1024LL;
+			}
 			/*
 			 * Cap, bearing in mind that we deflate
 			 * total_memory by 50% at initialization

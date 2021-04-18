@@ -4519,16 +4519,21 @@ spl_free_thread()
 		    spl_vm_pressure_level != MAGIC_PRESSURE_UNAVAILABLE) {
 			/* there is pressure */
 			lowmem = true;
+			new_spl_free = -(2LL * PAGE_SIZE * spl_vm_pages_wanted);
 			if (spl_vm_pressure_level > 1) {
 				emergency_lowmem = true;
 				if (new_spl_free > 0)
-					new_spl_free = 0;
+					new_spl_free = -(4LL *
+					    PAGE_SIZE *
+					    spl_vm_pages_wanted);
+				spl_free_fast_pressure = TRUE;
 			}
-			new_spl_free = -(2LL * PAGE_SIZE * spl_vm_pages_wanted);
+			spl_free_manual_pressure += PAGE_SIZE *
+			    spl_vm_pages_wanted;
 		} else if (spl_vm_pages_wanted > 0) {
 			/* kVMPressureNormal but pages wanted */
-			/* XXX : hysteresis maintained below */
-			/* new_spl_free -= PAGE_SIZE * spl_vm_pages_wanted; */
+			/* XXX : additional hysteresis maintained below */
+			new_spl_free -= PAGE_SIZE * spl_vm_pages_wanted;
 		} else {
 			/*
 			 * No pressure. Xnu has freed up some memory

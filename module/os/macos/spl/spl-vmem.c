@@ -3814,8 +3814,8 @@ bucket_fragmented(const uint16_t bn, const uint64_t now)
 	}
 }
 
-static inline bool
-abd_fragmented()
+bool
+abd_arena_fragmented(void)
 {
 	extern vmem_t *abd_arena;
 
@@ -3848,8 +3848,8 @@ spl_arc_no_grow_impl(const uint16_t b, const size_t size,
 {
 	static _Atomic uint8_t frag_suppression_counter[VMEM_BUCKETS] = { 0 };
 
-	/* don't let the arc grow if the abd arena is fragmented */
-	if (abd_fragmented())
+	/* if abd_arena is fragmented, bucket condition doesn't matter */
+	if (abd_arena_fragmented())
 		return (true);
 
 	const uint64_t now = zfs_lbolt();

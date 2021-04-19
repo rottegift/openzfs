@@ -507,6 +507,9 @@ arc_reclaim_thread(void *unused)
 			// relatively low memory and arc is above arc_c_min
 			arc_no_grow = B_TRUE;
 			growtime = gethrtime() + SEC2NSEC(1);
+		} else if (abd_arena_fragmented()) {
+			arc_no_grow = B_TRUE;
+			growtime = gethrtime() + SEC2NSEC(5);
 		}
 
 		if (growtime > 0 && gethrtime() >= growtime) {

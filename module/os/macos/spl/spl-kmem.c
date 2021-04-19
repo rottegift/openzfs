@@ -4532,8 +4532,9 @@ spl_free_thread()
 			    spl_vm_pages_wanted;
 		} else if (spl_vm_pages_wanted > 0) {
 			/* kVMPressureNormal but pages wanted */
-			/* XXX : additional hysteresis maintained below */
-			new_spl_free -= PAGE_SIZE * spl_vm_pages_wanted;
+			new_spl_free = PAGE_SIZE *
+			    ((spl_vm_pages_reclaimed >> 1) -
+			    spl_vm_pages_wanted);
 		} else {
 			/*
 			 * No pressure. Xnu has freed up some memory

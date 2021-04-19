@@ -3814,6 +3814,31 @@ bucket_fragmented(const uint16_t bn, const uint64_t now)
 	}
 }
 
+static inline bool
+abd_fragmented()
+{
+	extern vmem_t *abd_arena;
+
+	if (abd_arena == NULL)
+		return (false);
+
+	const int64_t imported =
+	    (int64_t)abd_arena->vm_kstat.vk_mem_import.value.ui64;
+	const int64_t inuse =
+	    (int64_t)abd_arena->vm_kstat.vk_mem_inuse.value.ui64;
+
+	/*
+	 * Tolerate 1GiB or 10% fragmentation,
+	 * but otherwise wait for attrition
+	 */
+	if (imported - inuse > 1024LL*1024LL*1024LL)
+		return (true);
+	if (imported > inuse * 90LL / 100LL)
+		return (true);
+	else
+		return (false);
+}
+
 /*
  * return true if the bucket for size is fragmented
  */
@@ -3822,6 +3847,10 @@ spl_arc_no_grow_impl(const uint16_t b, const size_t size,
     const boolean_t buf_is_metadata, kmem_cache_t **kc)
 {
 	static _Atomic uint8_t frag_suppression_counter[VMEM_BUCKETS] = { 0 };
+
+	/* don't let the arc grow if the abd arena is fragmented */
+	if (abd_fragmented())
+		return (true);
 
 	const uint64_t now = zfs_lbolt();
 

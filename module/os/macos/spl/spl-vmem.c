@@ -3831,9 +3831,9 @@ abd_fragmented()
 	 * Tolerate 1GiB or 10% fragmentation,
 	 * but otherwise wait for attrition
 	 */
-	if (imported - inuse > 1024LL*1024LL*1024LL)
+	if ((imported - inuse) > 1024LL*1024LL*1024LL)
 		return (true);
-	if (imported > inuse * 90LL / 100LL)
+	if ((imported * 90LL / 100LL) > inuse)
 		return (true);
 	else
 		return (false);

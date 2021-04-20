@@ -168,7 +168,7 @@ extern size_t vmem_size_locked(vmem_t *, int);
 extern size_t vmem_size_semi_atomic(vmem_t *, int);
 extern void vmem_qcache_reap(vmem_t *vmp);
 extern int64_t vmem_buckets_size(int);
-extern bool abd_arena_fragmented(void);
+extern int64_t abd_arena_empty_space(void);
 
 #ifdef	__cplusplus
 }

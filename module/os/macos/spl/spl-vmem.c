@@ -3814,29 +3814,34 @@ bucket_fragmented(const uint16_t bn, const uint64_t now)
 	}
 }
 
-bool
-abd_arena_fragmented(void)
+/*
+ * Return an adjusted number of bytes free in the
+ * abd_cache_arena (if it exists), for arc_no_grow
+ * policy: if there's lots of space, don't allow
+ * arc growth for a while to see if the gap
+ * between imported and inuse drops.
+ */
+int64_t
+abd_arena_empty_space(void)
 {
 	extern vmem_t *abd_arena;
 
 	if (abd_arena == NULL)
-		return (false);
+		return (0);
 
 	const int64_t imported =
 	    (int64_t)abd_arena->vm_kstat.vk_mem_import.value.ui64;
 	const int64_t inuse =
 	    (int64_t)abd_arena->vm_kstat.vk_mem_inuse.value.ui64;
 
-	/*
-	 * Tolerate 1GiB or 10% fragmentation,
-	 * but otherwise wait for attrition
-	 */
-	if ((imported - inuse) > 1024LL*1024LL*1024LL)
-		return (true);
-	if ((imported * 90LL / 100LL) > inuse)
-		return (true);
-	else
-		return (false);
+	/* Hide 10% or 1GiB fragmentation from arc_no_grow */
+	int64_t headroom =
+	    (imported * 90LL / 100LL) - inuse;
+
+	if (headroom < 1024LL*1024LL*1024LL)
+		headroom = 0;
+
+	return (headroom);
 }
 
 /*
@@ -3847,10 +3852,6 @@ spl_arc_no_grow_impl(const uint16_t b, const size_t size,
     const boolean_t buf_is_metadata, kmem_cache_t **kc)
 {
 	static _Atomic uint8_t frag_suppression_counter[VMEM_BUCKETS] = { 0 };
-
-	/* if abd_arena is fragmented, bucket condition doesn't matter */
-	if (abd_arena_fragmented())
-		return (true);
 
 	const uint64_t now = zfs_lbolt();
 

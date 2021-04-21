@@ -524,12 +524,10 @@ arc_reclaim_thread(void *unused)
 				previous_gap = 0;
 				previous_abd_size = abd_size;
 			} else if (gap > 0 && gap == previous_gap &&
-			    abd_size >= previous_abd_size) {
+			    abd_size == previous_abd_size) {
 				if (curtime < when_gap_grew + SEC2NSEC(600)) {
 					/*
-					 * our abd arena is unchanged, or
-					 * we kept the gap while
-					 * growing the arc.
+					 * our abd arena is unchanged
 					 * try up to ten minutes for kmem layer
 					 * to free slabs to abd vmem layer
 					 */
@@ -575,6 +573,7 @@ arc_reclaim_thread(void *unused)
 					if (arc_c_min + sb > arc_c)
 						arc_reduce_target_size(sb);
 				}
+				previous_abd_size = abd_size;
 			} else if (gap > 0 && gap < previous_gap) {
 				/*
 				 * vmem layer successfully freeing.
@@ -585,6 +584,9 @@ arc_reclaim_thread(void *unused)
 					    SEC2NSEC(arc_grow_retry);
 				}
 				previous_gap = gap;
+				previous_abd_size = abd_size;
+			} else {
+				previous_abd_size = abd_size;
 			}
 		}
 

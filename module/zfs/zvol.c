@@ -87,6 +87,10 @@
 
 #include <sys/zvol_impl.h>
 
+#ifdef __APPLE__
+extern taskq_t *zvol_taskq;
+#define	system_taskq	zvol_taskq
+#endif
 
 unsigned int zvol_inhibit_dev = 0;
 unsigned int zvol_volmode = ZFS_VOLMODE_GEOM;

@@ -335,7 +335,7 @@ zfs_boot_add_config(pool_list_t *pl, const char *path,
 	    &state) == 0 &&
 	    (state == POOL_STATE_SPARE || state == POOL_STATE_L2CACHE) &&
 	    nvlist_lookup_uint64(config, ZPOOL_CONFIG_GUID, &vdev_guid) == 0) {
-		if ((ne = (name_entry_t *) kmem_alloc(
+		if ((ne = (name_entry_t *)kmem_alloc(
 		    sizeof (name_entry_t), KM_SLEEP)) == NULL) {
 			return (-1);
 		}
@@ -383,7 +383,7 @@ zfs_boot_add_config(pool_list_t *pl, const char *path,
 	}
 
 	if (pe == NULL) {
-		if ((pe = (pool_entry_t *) kmem_alloc(
+		if ((pe = (pool_entry_t *)kmem_alloc(
 		    sizeof (pool_entry_t), KM_SLEEP)) == NULL) {
 			nvlist_free(config);
 			return (-1);
@@ -404,7 +404,7 @@ zfs_boot_add_config(pool_list_t *pl, const char *path,
 	}
 
 	if (ve == NULL) {
-		if ((ve = (vdev_entry_t *) kmem_alloc(
+		if ((ve = (vdev_entry_t *)kmem_alloc(
 		    sizeof (vdev_entry_t), KM_SLEEP)) == NULL) {
 			nvlist_free(config);
 			return (-1);
@@ -426,7 +426,7 @@ zfs_boot_add_config(pool_list_t *pl, const char *path,
 	}
 
 	if (ce == NULL) {
-		if ((ce = (config_entry_t *) kmem_alloc(
+		if ((ce = (config_entry_t *)kmem_alloc(
 		    sizeof (config_entry_t), KM_SLEEP)) == NULL) {
 			nvlist_free(config);
 			return (-1);
@@ -446,7 +446,7 @@ zfs_boot_add_config(pool_list_t *pl, const char *path,
 	 * mappings so that we can fix up the configuration as necessary before
 	 * doing the import.
 	 */
-	if ((ne = (name_entry_t *) kmem_alloc(
+	if ((ne = (name_entry_t *)kmem_alloc(
 	    sizeof (name_entry_t), KM_SLEEP)) == NULL) {
 		return (-1);
 	}
@@ -668,7 +668,7 @@ zfs_boot_get_configs(pool_list_t *pl, boolean_t active_ok)
 			if (id >= children) {
 				nvlist_t **newchild;
 
-				newchild = (nvlist_t **) kmem_alloc((id + 1) *
+				newchild = (nvlist_t **)kmem_alloc((id + 1) *
 				    sizeof (nvlist_t *), KM_SLEEP);
 				if (newchild == NULL)
 					goto nomem;
@@ -701,7 +701,7 @@ zfs_boot_get_configs(pool_list_t *pl, boolean_t active_ok)
 			} else if (max_id > children) {
 				nvlist_t **newchild;
 
-				newchild = (nvlist_t **) kmem_alloc((max_id) *
+				newchild = (nvlist_t **)kmem_alloc((max_id) *
 				    sizeof (nvlist_t *), KM_SLEEP);
 				if (newchild == NULL)
 					goto nomem;
@@ -984,7 +984,7 @@ zfs_boot_read_label(IOService *zfs_hl, IOMedia *media,
 	size = P2ALIGN_TYPED(mediaSize, labelsize, uint64_t);
 
 	/* Allocate a buffer to read labels into */
-	label = (vdev_label_t *) kmem_alloc(labelsize, KM_SLEEP);
+	label = (vdev_label_t *)kmem_alloc(labelsize, KM_SLEEP);
 	if (!label) {
 		dprintf("%s couldn't allocate label for read\n", __func__);
 		return (-1);
@@ -1120,7 +1120,7 @@ zfs_boot_probe_media(void* target, void* refCon,
 	OSObject *isLeaf = 0;
 	OSString *ospath = 0;
 	uint64_t mediaSize = 0;
-	pool_list_t *pools = (pool_list_t *) refCon;
+	pool_list_t *pools = (pool_list_t *)refCon;
 
 	/* Verify pool list can be cast */
 	if (!pools) {
@@ -1182,7 +1182,6 @@ zfs_boot_probe_media(void* target, void* refCon,
 		dprintf("%s terminating 2\n", __func__);
 		goto out;
 	}
-
 
 	/* Take pool_list lock */
 	mutex_enter(&pools->lock);
@@ -1248,7 +1247,7 @@ zfs_boot_probe_disk(pool_list_t *pools, IOMedia *media)
 		/* Allocate room for prefix, UUID, and null terminator */
 		len = (strlen(prefix) + uuid->getLength()) + 1;
 
-		path = (char *) kmem_alloc(len, KM_SLEEP);
+		path = (char *)kmem_alloc(len, KM_SLEEP);
 		if (!path) {
 			dprintf("%s couldn't allocate path\n", __func__);
 			return (false);
@@ -1269,7 +1268,7 @@ zfs_boot_probe_disk(pool_list_t *pools, IOMedia *media)
 
 		/* Allocate room for "/dev/" + "diskNsN" + '\0' */
 		len = (strlen("/dev/") + ospath->getLength() + 1);
-		path = (char *) kmem_alloc(len, KM_SLEEP);
+		path = (char *)kmem_alloc(len, KM_SLEEP);
 		if (!path) {
 			dprintf("%s couldn't allocate path\n", __func__);
 			return (false);
@@ -2009,7 +2008,7 @@ zfs_boot_check_mountroot(char **pool_name, uint64_t *pool_guid)
 		dprintf("%s %s\n", __func__, "Boot time");
 	}
 
-	zfs_boot = (char *) kmem_alloc(ZFS_MAX_DATASET_NAME_LEN, KM_SLEEP);
+	zfs_boot = (char *)kmem_alloc(ZFS_MAX_DATASET_NAME_LEN, KM_SLEEP);
 
 	if (!zfs_boot) {
 		dprintf("%s couldn't allocate zfs_boot\n", __func__);
@@ -2058,7 +2057,7 @@ zfs_boot_check_mountroot(char **pool_name, uint64_t *pool_guid)
 			len = strlen(zfs_boot);
 		}
 
-		*pool_name = (char *) kmem_alloc(len+1, KM_SLEEP);
+		*pool_name = (char *)kmem_alloc(len+1, KM_SLEEP);
 		snprintf(*pool_name, len+1, "%s", zfs_boot);
 
 		dprintf("Got zfs_boot: [%llu] {%s}->{%s}\n",
@@ -2098,7 +2097,7 @@ zfs_boot_init(IOService *zfs_hl)
 		return (true);
 	}
 
-	pools = (pool_list_t *) kmem_alloc(sizeof (pool_list_t),
+	pools = (pool_list_t *)kmem_alloc(sizeof (pool_list_t),
 	    KM_SLEEP);
 	if (!pools) {
 		goto error;
@@ -2110,12 +2109,18 @@ zfs_boot_init(IOService *zfs_hl)
 		/* Fail if memory couldn't be allocated */
 		goto error;
 	}
-	pools->terminating = ZFS_BOOT_ACTIVE;
+
+	/* create the lock and cv early, before notifier */
+	mutex_init(&pools->lock, NULL, MUTEX_DEFAULT, NULL);
+	cv_init(&pools->cv, NULL, CV_DEFAULT, NULL);
+
 	pools->pools = 0;
 	pools->names = 0;
 	pools->pool_guid = pool_guid;
 	pools->pool_name = pool_name;
 	pools->zfs_hl = zfs_hl;
+	/* and finally hit the _Atomic to spread the above */
+	pools->terminating = ZFS_BOOT_ACTIVE;
 
 	notifier = IOService::addMatchingNotification(
 	    gIOFirstPublishNotification, IOService::serviceMatching(
@@ -2127,9 +2132,6 @@ zfs_boot_init(IOService *zfs_hl)
 		goto error;
 	}
 	pools->notifier = notifier;
-
-	mutex_init(&pools->lock, NULL, MUTEX_DEFAULT, NULL);
-	cv_init(&pools->cv, NULL, CV_DEFAULT, NULL);
 
 	/* Finally, start the import thread */
 	taskq_dispatch(system_taskq, zfs_boot_import_thread,

@@ -186,7 +186,7 @@ typedef struct pool_list {
 	kcondvar_t		cv;
 	IOService		*zfs_hl;
 	IONotifier		*notifier;
-	volatile UInt64		terminating;
+	_Atomic UInt64		terminating;
 } pool_list_t;
 
 #define	ZFS_BOOT_ACTIVE		0x1

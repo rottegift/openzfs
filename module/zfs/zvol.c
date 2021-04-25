@@ -87,7 +87,6 @@
 
 #include <sys/zvol_impl.h>
 
-
 unsigned int zvol_inhibit_dev = 0;
 unsigned int zvol_volmode = ZFS_VOLMODE_GEOM;
 

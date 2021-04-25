@@ -31,7 +31,7 @@
  * IOMediaBSDClient devices as they are published (or matched?),
  * passing pool_list (automatically calls handler for all
  * existing devices).
- * Dispatch zfs_boot_import_thread on system_taskq.
+ * Dispatch zfs_boot_import_thread on zfs_boot_taskq.
  *
  * In notification handler zfs_boot_probe_disk:
  * Check provider IOMedia for:
@@ -111,6 +111,8 @@ extern "C" {
 int dsl_dsobj_to_dsname(char *pname, uint64_t obj, char *buf);
 
 } /* extern "C" */
+
+static taskq_t *zfs_boot_taskq;
 
 #include <sys/zvolIO.h>
 #include <sys/ZFSPool.h>
@@ -1436,6 +1438,9 @@ zfs_boot_fini()
 	/* Wakeup zfs_boot_import_thread */
 	cv_signal(&pools->cv);
 
+	taskq_wait(zfs_boot_taskq);
+	taskq_destroy(zfs_boot_taskq);
+
 	/* Clean up */
 	pools = 0;
 }
@@ -2110,6 +2115,15 @@ zfs_boot_init(IOService *zfs_hl)
 		goto error;
 	}
 
+	/* create the zfs_boot taskq */
+
+	zfs_boot_taskq =
+	    taskq_create("zfs_boot_taskq", 100, defclsyspri,
+		max_ncpus, INT_MAX,
+		TASKQ_PREPOPULATE | TASKQ_THREADS_CPU_PCT);
+
+	VERIFY(zfs_boot_taskq);
+
 	/* create the lock and cv early, before notifier */
 	mutex_init(&pools->lock, NULL, MUTEX_DEFAULT, NULL);
 	cv_init(&pools->cv, NULL, CV_DEFAULT, NULL);
@@ -2134,8 +2148,9 @@ zfs_boot_init(IOService *zfs_hl)
 	pools->notifier = notifier;
 
 	/* Finally, start the import thread */
-	taskq_dispatch(system_taskq, zfs_boot_import_thread,
-	    (void*)pools, TQ_SLEEP);
+	VERIFY3U(taskq_dispatch(zfs_boot_taskq, zfs_boot_import_thread,
+		(void*)pools, TQ_SLEEP), !=, 0);
+
 #if 0
 /* Alternate method of scheduling the import thread */
 	(void) thread_create(NULL, 0, zfs_boot_import_thread,

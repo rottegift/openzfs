@@ -200,7 +200,7 @@ abd_alloc_struct_impl(size_t size)
 	 */
 	size_t abd_size = MAX(sizeof (abd_t),
 	    offsetof(abd_t, abd_u.abd_scatter.abd_chunks[chunkcnt]));
-	abd_t *abd = kmem_alloc(abd_size, KM_PUSHPAGE);
+	abd_t *abd = kmem_zalloc(abd_size, KM_PUSHPAGE);
 	ASSERT3P(abd, !=, NULL);
 	ABDSTAT_INCR(abdstat_struct_size, abd_size);
 

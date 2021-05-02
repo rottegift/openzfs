@@ -201,7 +201,9 @@ abd_alloc_struct_impl(size_t size)
 	size_t abd_size = MAX(sizeof (abd_t),
 	    offsetof(abd_t, abd_u.abd_scatter.abd_chunks[chunkcnt]));
 	abd_t *abd = kmem_alloc(abd_size, KM_PUSHPAGE);
-	ASSERT3P(abd, !=, NULL);
+
+	abd->abd_orig_size = abd_size;
+
 	ABDSTAT_INCR(abdstat_struct_size, abd_size);
 
 	return (abd);
@@ -214,6 +216,20 @@ abd_free_struct_impl(abd_t *abd)
 	    abd_scatter_chunkcnt(abd);
 	ssize_t size = MAX(sizeof (abd_t),
 	    offsetof(abd_t, abd_u.abd_scatter.abd_chunks[chunkcnt]));
+
+	/*
+	 * XXX: scatter ABDs coming from vdev_raidz_row_free() and
+	 *      vdev_queue_agg_io_done() for raidzN with more than
+	 *      one data column (e.g., raidz2 with four disks, but not
+	 *      three) will sometimes end up with a small size.
+	 *      Use the original allocation size if it is larger than size.
+	 */
+	if (!abd_is_linear(abd) && !abd_is_gang(abd)) {
+		ASSERT3U(size, ==, abd->abd_orig_size);
+		if (size < abd->abd_orig_size)
+			size = abd->abd_orig_size;
+	}
+
 	kmem_free(abd, size);
 	ABDSTAT_INCR(abdstat_struct_size, -size);
 }
@@ -259,8 +275,9 @@ abd_free_zero_scatter(void)
 void
 abd_init(void)
 {
-	abd_chunk_cache = kmem_cache_create("abd_chunk", zfs_abd_chunk_size, 0,
-	    NULL, NULL, NULL, NULL, abd_arena, KMC_NOTOUCH);
+	abd_chunk_cache = kmem_cache_create("abd_chunk", zfs_abd_chunk_size,
+	    MIN(PAGE_SIZE, 4096),
+	    NULL, NULL, NULL, NULL, abd_arena, 0);
 
 	abd_ksp = kstat_create("zfs", 0, "abdstats", "misc", KSTAT_TYPE_NAMED,
 	    sizeof (abd_stats) / sizeof (kstat_named_t), KSTAT_FLAG_VIRTUAL);
@@ -340,7 +357,6 @@ abd_get_offset_scatter(abd_t *abd, abd_t *sabd, size_t off)
 	 * if we own the underlying data buffer, which is not true in
 	 * this case. Therefore, we don't ever use ABD_FLAG_META here.
 	 */
-	abd->abd_flags = 0;
 
 	ABD_SCATTER(abd).abd_offset = new_offset % zfs_abd_chunk_size;
 	ABD_SCATTER(abd).abd_chunk_size = zfs_abd_chunk_size;

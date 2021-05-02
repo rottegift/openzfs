@@ -559,7 +559,7 @@ abd_get_offset_struct(abd_t *abd, abd_t *sabd, size_t off, size_t size)
 	abd_init_struct(abd);
 	result = abd_get_offset_impl(abd, sabd, off, size);
 	if (result != abd)
-		abd_fini_struct(abd);
+		abd_free_struct(abd);
 	return (result);
 }
 

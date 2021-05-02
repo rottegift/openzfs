@@ -259,8 +259,9 @@ abd_free_zero_scatter(void)
 void
 abd_init(void)
 {
-	abd_chunk_cache = kmem_cache_create("abd_chunk", zfs_abd_chunk_size, 0,
-	    NULL, NULL, NULL, NULL, abd_arena, KMC_NOTOUCH);
+	abd_chunk_cache = kmem_cache_create("abd_chunk", zfs_abd_chunk_size,
+	    MIN(PAGE_SIZE, 4096),
+	    NULL, NULL, NULL, NULL, abd_arena, 0);
 
 	abd_ksp = kstat_create("zfs", 0, "abdstats", "misc", KSTAT_TYPE_NAMED,
 	    sizeof (abd_stats) / sizeof (kstat_named_t), KSTAT_FLAG_VIRTUAL);
@@ -340,7 +341,6 @@ abd_get_offset_scatter(abd_t *abd, abd_t *sabd, size_t off)
 	 * if we own the underlying data buffer, which is not true in
 	 * this case. Therefore, we don't ever use ABD_FLAG_META here.
 	 */
-	abd->abd_flags = 0;
 
 	ABD_SCATTER(abd).abd_offset = new_offset % zfs_abd_chunk_size;
 	ABD_SCATTER(abd).abd_chunk_size = zfs_abd_chunk_size;

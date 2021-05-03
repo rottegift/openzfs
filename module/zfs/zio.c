@@ -131,7 +131,7 @@ int zio_exclude_metadata = 0;
 int zio_requeue_io_start_cut_in_line = 1;
 
 #ifdef ZFS_DEBUG
-int zio_buf_debug_limit = 16384;
+int zio_buf_debug_limit = 65536;
 #else
 int zio_buf_debug_limit = 0;
 #endif
@@ -161,9 +161,10 @@ zio_init(void)
 		size_t align = 0;
 		size_t data_cflags, cflags;
 
-		data_cflags = KMC_NODEBUG;
+
 		cflags = (zio_exclude_metadata || size > zio_buf_debug_limit) ?
 		    KMC_NODEBUG : 0;
+		data_cflags = cflags;
 
 #if defined(_ILP32) && defined(_KERNEL)
 		/*

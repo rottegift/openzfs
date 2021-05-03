@@ -208,6 +208,46 @@ abd_alloc_struct_impl(size_t size)
 }
 
 void
+abd_free_struct_linear(abd_t *abd)
+{
+	kmem_free(abd, sizeof (abd_t));
+	ABDSTAT_INCR(abdstat_struct_size, -(int)sizeof (abd_t));
+}
+
+void
+abd_free_struct_gang(abd_t *abd)
+{
+	kmem_free(abd, sizeof (abd_t));
+	ABDSTAT_INCR(abdstat_struct_size, -(int)sizeof (abd_t));
+}
+
+void
+abd_free_struct_scatter(abd_t *abd)
+{
+	uint_t chunkcnt = abd_scatter_chunkcnt(abd);
+	int64_t size =
+	    offsetof(abd_t, abd_u.abd_scatter.abd_chunks[chunkcnt]);
+
+	if (size < sizeof (abd_t))
+		size = sizeof (abd_t);
+
+	kmem_free(abd, size);
+	ABDSTAT_INCR(abdstat_struct_size, -size);
+}
+
+void
+abd_free_struct_impl(abd_t *abd)
+{
+	if (abd_is_linear(abd))
+		return (abd_free_struct_linear(abd));
+	else if (abd_is_gang(abd))
+		return (abd_free_struct_gang(abd));
+	else
+		return (abd_free_struct_scatter(abd));
+}
+
+#if 0
+void
 abd_free_struct_impl(abd_t *abd)
 {
 	uint_t chunkcnt = abd_is_linear(abd) || abd_is_gang(abd) ? 0 :
@@ -217,6 +257,7 @@ abd_free_struct_impl(abd_t *abd)
 	kmem_free(abd, size);
 	ABDSTAT_INCR(abdstat_struct_size, -size);
 }
+#endif
 
 /*
  * Allocate scatter ABD of size SPA_MAXBLOCKSIZE, where

@@ -333,10 +333,8 @@ abd_get_offset_scatter(abd_t *abd, abd_t *sabd, size_t off)
 		abd = NULL;
 	}
 
-	if (abd == NULL) {
+	if (abd == NULL)
 		abd = abd_alloc_struct(chunkcnt * zfs_abd_chunk_size);
-		abd->abd_flags = 0;
-	}
 
 	/*
 	 * Even if this buf is filesystem metadata, we only track that

@@ -135,6 +135,42 @@
 	VDEV_RAIDZ_64MUL_2((x), mask); \
 }
 
+void vdev_raidz_row_free_abd(abd_t *);
+void vdev_raidz_row_free_gdata(abd_t *);
+void vdev_raidz_row_free_origdata(abd_t *);
+void vdev_raidz_row_free_copy(abd_t *);
+void vdev_raidz_row_free_empty(abd_t *);
+
+void
+vdev_raidz_row_free_abd(abd_t *abd)
+{
+	abd_free(abd);
+}
+
+void
+vdev_raidz_row_free_gdata(abd_t *abd)
+{
+	abd_free(abd);
+}
+
+void
+vdev_raidz_row_free_origdata(abd_t *abd)
+{
+	abd_free(abd);
+}
+
+void
+vdev_raidz_row_free_copy(abd_t *abd)
+{
+	abd_free(abd);
+}
+
+void
+vdev_raidz_row_free_empty(abd_t *abd)
+{
+	abd_free(abd);
+}
+
 static void
 vdev_raidz_row_free(raidz_row_t *rr)
 {
@@ -142,18 +178,18 @@ vdev_raidz_row_free(raidz_row_t *rr)
 		raidz_col_t *rc = &rr->rr_col[c];
 
 		if (rc->rc_size != 0)
-			abd_free(rc->rc_abd);
+			vdev_raidz_row_free_abd(rc->rc_abd);
 		if (rc->rc_gdata != NULL)
-			abd_free(rc->rc_gdata);
+			vdev_raidz_row_free_gdata(rc->rc_gdata);
 		if (rc->rc_orig_data != NULL)
 			zio_buf_free(rc->rc_orig_data, rc->rc_size);
 	}
 
 	if (rr->rr_abd_copy != NULL)
-		abd_free(rr->rr_abd_copy);
+		vdev_raidz_row_free_copy(rr->rr_abd_copy);
 
 	if (rr->rr_abd_empty != NULL)
-		abd_free(rr->rr_abd_empty);
+		vdev_raidz_row_free_empty(rr->rr_abd_empty);
 
 	kmem_free(rr, offsetof(raidz_row_t, rr_col[rr->rr_scols]));
 }

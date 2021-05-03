@@ -558,8 +558,11 @@ abd_get_offset_struct(abd_t *abd, abd_t *sabd, size_t off, size_t size)
 	abd_t *result;
 	abd_init_struct(abd);
 	result = abd_get_offset_impl(abd, sabd, off, size);
-	if (result != abd)
+	if (result != abd) {
 		abd_fini_struct(abd);
+		if (abd->abd_flags & ABD_FLAG_ALLOCD)
+			abd_free_struct_impl(abd);
+	}
 	return (result);
 }
 

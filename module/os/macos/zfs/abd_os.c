@@ -203,7 +203,21 @@ abd_alloc_struct_impl(size_t size)
 #else
 	size_t abd_size = 0;
 	if (size == 0) {
-		/* This is a gang allocation */
+		/*
+		 * This is a gang or linear allocation:
+		 * abd_alloc_gangr() calls us with 0
+		 * and so do
+		 * abd_alloc_linear()
+		 * abd_get_from_buf() [which makes a linear]
+		 * and
+		 * abd_get_offset_impl() [special case]
+		 * We only get here with size > 0
+		 * if we are abd_alloc() and are scatter or
+		 * [special cases]
+		 * abd_alloc_zero()
+		 * abd_alloc_zero_scatter()
+		 * abd_get_offset_scatter()
+		 */
 		abd_size = sizeof (abd_t);
 	} else {
 		/* This is a scatter allocation */

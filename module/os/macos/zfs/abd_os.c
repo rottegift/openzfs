@@ -404,15 +404,14 @@ abd_get_offset_scatter(abd_t *abd, abd_t *sabd, size_t off)
 	}
 
 	if (abd == NULL) {
-		size_t size =
-		    chunkcnt * zfs_abd_chunk_size;
+		/*
+		 * Feeding 0 to abd_alloc_struct(size) makes
+		 * us look like we are doing a linear, gang,
+		 * or other allocaiton.
+		 */
+		VERIFY3U((chunkcnt * zfs_abd_chunk_size), >, 0);
 
-		VERIFY3U(size, >=, sizeof (abd_t));
-
-		if (size < sizeof (abd_t))
-			size = sizeof (abd_t);
-
-		abd = abd_alloc_struct(size);
+		abd = abd_alloc_struct(chunkcnt * zfs_abd_chunk_size);
 	}
 
 	/*

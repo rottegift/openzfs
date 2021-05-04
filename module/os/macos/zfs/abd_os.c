@@ -107,7 +107,7 @@ abd_chunkcnt_for_bytes(size_t size)
 static inline size_t
 abd_scatter_chunkcnt(abd_t *abd)
 {
-	ASSERT(!abd_is_linear(abd));
+	VERIFY(!abd_is_linear(abd));
 	return (abd_chunkcnt_for_bytes(
 	    ABD_SCATTER(abd).abd_offset + abd->abd_size));
 }
@@ -122,7 +122,7 @@ void
 abd_update_scatter_stats(abd_t *abd, abd_stats_op_t op)
 {
 	size_t n = abd_scatter_chunkcnt(abd);
-	ASSERT(op == ABDSTAT_INCR || op == ABDSTAT_DECR);
+	VERIFY(op == ABDSTAT_INCR || op == ABDSTAT_DECR);
 	if (op == ABDSTAT_INCR) {
 		ABDSTAT_BUMP(abdstat_scatter_cnt);
 		ABDSTAT_INCR(abdstat_scatter_data_size, abd->abd_size);
@@ -139,7 +139,7 @@ abd_update_scatter_stats(abd_t *abd, abd_stats_op_t op)
 void
 abd_update_linear_stats(abd_t *abd, abd_stats_op_t op)
 {
-	ASSERT(op == ABDSTAT_INCR || op == ABDSTAT_DECR);
+	VERIFY(op == ABDSTAT_INCR || op == ABDSTAT_DECR);
 	if (op == ABDSTAT_INCR) {
 		ABDSTAT_BUMP(abdstat_linear_cnt);
 		ABDSTAT_INCR(abdstat_linear_data_size, abd->abd_size);
@@ -157,11 +157,11 @@ abd_verify_scatter(abd_t *abd)
 	 * if an error if the ABD has been marked as a linear page.
 	 */
 	VERIFY(!abd_is_linear_page(abd));
-	ASSERT3U(ABD_SCATTER(abd).abd_offset, <,
+	VERIFY3U(ABD_SCATTER(abd).abd_offset, <,
 	    zfs_abd_chunk_size);
 	size_t n = abd_scatter_chunkcnt(abd);
 	for (int i = 0; i < n; i++) {
-		ASSERT3P(
+		VERIFY3P(
 		    ABD_SCATTER(abd).abd_chunks[i], !=, NULL);
 	}
 }
@@ -172,7 +172,7 @@ abd_alloc_chunks(abd_t *abd, size_t size)
 	size_t n = abd_chunkcnt_for_bytes(size);
 	for (int i = 0; i < n; i++) {
 		void *c = kmem_cache_alloc(abd_chunk_cache, KM_PUSHPAGE);
-		ASSERT3P(c, !=, NULL);
+		VERIFY3P(c, !=, NULL);
 		ABD_SCATTER(abd).abd_chunks[i] = c;
 	}
 	ABD_SCATTER(abd).abd_chunk_size = zfs_abd_chunk_size;
@@ -230,7 +230,7 @@ abd_alloc_struct_impl(size_t size)
 #endif
 
 	abd_t *abd = kmem_zalloc(abd_size, KM_PUSHPAGE);
-	ASSERT3P(abd, !=, NULL);
+	VERIFY3P(abd, !=, NULL);
 	ABDSTAT_INCR(abdstat_struct_size, abd_size);
 
 	return (abd);
@@ -387,7 +387,7 @@ abd_t *
 abd_get_offset_scatter(abd_t *abd, abd_t *sabd, size_t off)
 {
 	abd_verify(sabd);
-	ASSERT3U(off, <=, sabd->abd_size);
+	VERIFY3U(off, <=, sabd->abd_size);
 
 	size_t new_offset = ABD_SCATTER(sabd).abd_offset + off;
 	size_t chunkcnt = abd_scatter_chunkcnt(sabd) -
@@ -435,7 +435,7 @@ abd_get_offset_scatter(abd_t *abd, abd_t *sabd, size_t off)
 static inline size_t
 abd_iter_scatter_chunk_offset(struct abd_iter *aiter)
 {
-	ASSERT(!abd_is_linear(aiter->iter_abd));
+	VERIFY(!abd_is_linear(aiter->iter_abd));
 	return ((ABD_SCATTER(aiter->iter_abd).abd_offset +
 	    aiter->iter_pos) % zfs_abd_chunk_size);
 }
@@ -443,7 +443,7 @@ abd_iter_scatter_chunk_offset(struct abd_iter *aiter)
 static inline size_t
 abd_iter_scatter_chunk_index(struct abd_iter *aiter)
 {
-	ASSERT(!abd_is_linear(aiter->iter_abd));
+	VERIFY(!abd_is_linear(aiter->iter_abd));
 	return ((ABD_SCATTER(aiter->iter_abd).abd_offset +
 	    aiter->iter_pos) / zfs_abd_chunk_size);
 }
@@ -454,7 +454,7 @@ abd_iter_scatter_chunk_index(struct abd_iter *aiter)
 void
 abd_iter_init(struct abd_iter *aiter, abd_t *abd)
 {
-	ASSERT(!abd_is_gang(abd));
+	VERIFY(!abd_is_gang(abd));
 	abd_verify(abd);
 	aiter->iter_abd = abd;
 	aiter->iter_pos = 0;
@@ -480,8 +480,8 @@ abd_iter_at_end(struct abd_iter *aiter)
 void
 abd_iter_advance(struct abd_iter *aiter, size_t amount)
 {
-	ASSERT3P(aiter->iter_mapaddr, ==, NULL);
-	ASSERT0(aiter->iter_mapsize);
+	VERIFY3P(aiter->iter_mapaddr, ==, NULL);
+	VERIFY0(aiter->iter_mapsize);
 
 	/* There's nothing left to advance to, so do nothing */
 	if (abd_iter_at_end(aiter))
@@ -500,8 +500,8 @@ abd_iter_map(struct abd_iter *aiter)
 	void *paddr;
 	size_t offset = 0;
 
-	ASSERT3P(aiter->iter_mapaddr, ==, NULL);
-	ASSERT0(aiter->iter_mapsize);
+	VERIFY3P(aiter->iter_mapaddr, ==, NULL);
+	VERIFY0(aiter->iter_mapsize);
 
 	/* Panic if someone has changed zfs_abd_chunk_size */
 	IMPLY(!abd_is_linear(aiter->iter_abd), zfs_abd_chunk_size ==
@@ -536,8 +536,8 @@ abd_iter_unmap(struct abd_iter *aiter)
 	if (abd_iter_at_end(aiter))
 		return;
 
-	ASSERT3P(aiter->iter_mapaddr, !=, NULL);
-	ASSERT3U(aiter->iter_mapsize, >, 0);
+	VERIFY3P(aiter->iter_mapaddr, !=, NULL);
+	VERIFY3U(aiter->iter_mapsize, >, 0);
 
 	aiter->iter_mapaddr = NULL;
 	aiter->iter_mapsize = 0;

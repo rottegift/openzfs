@@ -185,6 +185,7 @@ abd_alloc(size_t size, boolean_t is_metadata)
 		return (abd_alloc_linear(size, is_metadata));
 
 	VERIFY3U(size, <=, SPA_MAXBLOCKSIZE);
+	VERIFY3U(size, >, 0);
 
 	abd_t *abd = abd_alloc_struct(size);
 	abd->abd_flags |= ABD_FLAG_OWNER;

@@ -224,6 +224,8 @@ abd_alloc_struct_impl(size_t size)
 		size_t chunkcnt = abd_chunkcnt_for_bytes(size);
 		abd_size =
 		    offsetof(abd_t, abd_u.abd_scatter.abd_chunks[chunkcnt]);
+		if (abd_size < sizeof (abd_t))
+			abd_size = sizeof (abd_t);
 	}
 #endif
 
@@ -255,7 +257,8 @@ abd_free_struct_scatter(abd_t *abd)
 	int64_t size =
 	    offsetof(abd_t, abd_u.abd_scatter.abd_chunks[chunkcnt]);
 
-	VERIFY3U(size, >=, sizeof (abd_t));
+	if (size < sizeof (abd_t))
+		size = sizeof (abd_t);
 
 	kmem_free(abd, size);
 	ABDSTAT_INCR(abdstat_struct_size, -size);

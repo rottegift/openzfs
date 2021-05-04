@@ -228,8 +228,10 @@ abd_free_struct_scatter(abd_t *abd)
 	int64_t size =
 	    offsetof(abd_t, abd_u.abd_scatter.abd_chunks[chunkcnt]);
 
+#if 0 // this isn't a gang, so don't promote the size
 	if (size < sizeof (abd_t))
 		size = sizeof (abd_t);
+#endif
 
 	kmem_free(abd, size);
 	ABDSTAT_INCR(abdstat_struct_size, -size);

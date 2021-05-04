@@ -190,7 +190,6 @@ abd_free_chunks(abd_t *abd)
 abd_t *
 abd_alloc_struct_impl(size_t size)
 {
-	size_t chunkcnt = abd_chunkcnt_for_bytes(size);
 	/*
 	 * In the event we are allocating a gang ABD, the size passed in
 	 * will be 0. We must make sure to set abd_size to the size of an
@@ -198,8 +197,22 @@ abd_alloc_struct_impl(size_t size)
 	 * ABD struct allocation accounts for an additional 24 bytes over
 	 * a scatter ABD with 0 chunks.
 	 */
+#if 0
 	size_t abd_size = MAX(sizeof (abd_t),
 	    offsetof(abd_t, abd_u.abd_scatter.abd_chunks[chunkcnt]));
+#else
+	size_t abd_size = 0;
+	if (size == 0) {
+		/* This is a gang allocation */
+		abd_size = sizeof (abd_t);
+	} else {
+		/* This is a scatter allocation */
+		size_t chunkcnt = abd_chunkcnt_for_bytes(size);
+		abd_size =
+		    offsetof(abd_t, abd_u.abd_scatter.abd_chunks[chunkcnt]);
+	}
+#endif
+
 	abd_t *abd = kmem_zalloc(abd_size, KM_PUSHPAGE);
 	ASSERT3P(abd, !=, NULL);
 	ABDSTAT_INCR(abdstat_struct_size, abd_size);
@@ -228,10 +241,7 @@ abd_free_struct_scatter(abd_t *abd)
 	int64_t size =
 	    offsetof(abd_t, abd_u.abd_scatter.abd_chunks[chunkcnt]);
 
-#if 0 // this isn't a gang, so don't promote the size
-	if (size < sizeof (abd_t))
-		size = sizeof (abd_t);
-#endif
+	VERIFY3U(size, >=, sizeof (abd_t));
 
 	kmem_free(abd, size);
 	ABDSTAT_INCR(abdstat_struct_size, -size);

@@ -260,7 +260,7 @@ vdev_queue_class_tree(vdev_queue_t *vq, zio_priority_t p)
 static inline avl_tree_t *
 vdev_queue_type_tree(vdev_queue_t *vq, zio_type_t t)
 {
-	ASSERT(t == ZIO_TYPE_READ || t == ZIO_TYPE_WRITE || t == ZIO_TYPE_TRIM);
+	VERIFY(t == ZIO_TYPE_READ || t == ZIO_TYPE_WRITE || t == ZIO_TYPE_TRIM);
 	if (t == ZIO_TYPE_READ)
 		return (&vq->vq_read_offset_tree);
 	else if (t == ZIO_TYPE_WRITE)
@@ -356,8 +356,8 @@ vdev_queue_max_async_writes(spa_t *spa)
 	    zfs_vdev_async_write_min_active) /
 	    (max_bytes - min_bytes) +
 	    zfs_vdev_async_write_min_active;
-	ASSERT3U(writes, >=, zfs_vdev_async_write_min_active);
-	ASSERT3U(writes, <=, zfs_vdev_async_write_max_active);
+	VERIFY3U(writes, >=, zfs_vdev_async_write_min_active);
+	VERIFY3U(writes, <=, zfs_vdev_async_write_max_active);
 	return (writes);
 }
 
@@ -519,7 +519,7 @@ vdev_queue_io_add(vdev_queue_t *vq, zio_t *zio)
 	spa_t *spa = zio->io_spa;
 	spa_history_kstat_t *shk = &spa->spa_stats.io_history;
 
-	ASSERT3U(zio->io_priority, <, ZIO_PRIORITY_NUM_QUEUEABLE);
+	VERIFY3U(zio->io_priority, <, ZIO_PRIORITY_NUM_QUEUEABLE);
 	avl_add(vdev_queue_class_tree(vq, zio->io_priority), zio);
 	avl_add(vdev_queue_type_tree(vq, zio->io_type), zio);
 
@@ -536,7 +536,7 @@ vdev_queue_io_remove(vdev_queue_t *vq, zio_t *zio)
 	spa_t *spa = zio->io_spa;
 	spa_history_kstat_t *shk = &spa->spa_stats.io_history;
 
-	ASSERT3U(zio->io_priority, <, ZIO_PRIORITY_NUM_QUEUEABLE);
+	VERIFY3U(zio->io_priority, <, ZIO_PRIORITY_NUM_QUEUEABLE);
 	avl_remove(vdev_queue_class_tree(vq, zio->io_priority), zio);
 	avl_remove(vdev_queue_type_tree(vq, zio->io_type), zio);
 
@@ -567,8 +567,8 @@ vdev_queue_pending_add(vdev_queue_t *vq, zio_t *zio)
 	spa_t *spa = zio->io_spa;
 	spa_history_kstat_t *shk = &spa->spa_stats.io_history;
 
-	ASSERT(MUTEX_HELD(&vq->vq_lock));
-	ASSERT3U(zio->io_priority, <, ZIO_PRIORITY_NUM_QUEUEABLE);
+	VERIFY(MUTEX_HELD(&vq->vq_lock));
+	VERIFY3U(zio->io_priority, <, ZIO_PRIORITY_NUM_QUEUEABLE);
 	vq->vq_class[zio->io_priority].vqc_active++;
 	if (vdev_queue_is_interactive(zio->io_priority)) {
 		if (++vq->vq_ia_active == 1)
@@ -591,8 +591,8 @@ vdev_queue_pending_remove(vdev_queue_t *vq, zio_t *zio)
 	spa_t *spa = zio->io_spa;
 	spa_history_kstat_t *shk = &spa->spa_stats.io_history;
 
-	ASSERT(MUTEX_HELD(&vq->vq_lock));
-	ASSERT3U(zio->io_priority, <, ZIO_PRIORITY_NUM_QUEUEABLE);
+	VERIFY(MUTEX_HELD(&vq->vq_lock));
+	VERIFY3U(zio->io_priority, <, ZIO_PRIORITY_NUM_QUEUEABLE);
 	vq->vq_class[zio->io_priority].vqc_active--;
 	if (vdev_queue_is_interactive(zio->io_priority)) {
 		if (--vq->vq_ia_active == 0)
@@ -679,7 +679,7 @@ vdev_queue_aggregate(vdev_queue_t *vq, zio_t *zio)
 	 * leaf vdevs for aggregation.  See the comment at the end of the
 	 * zio_vdev_io_start() function.
 	 */
-	ASSERT(vq->vq_vdev->vdev_ops != &vdev_draid_spare_ops);
+	VERIFY(vq->vq_vdev->vdev_ops != &vdev_draid_spare_ops);
 
 	first = last = zio;
 
@@ -720,7 +720,7 @@ vdev_queue_aggregate(vdev_queue_t *vq, zio_t *zio)
 	 */
 	while ((first->io_flags & ZIO_FLAG_OPTIONAL) && first != last) {
 		first = AVL_NEXT(t, first);
-		ASSERT(first != NULL);
+		VERIFY(first != NULL);
 	}
 
 
@@ -777,9 +777,9 @@ vdev_queue_aggregate(vdev_queue_t *vq, zio_t *zio)
 	} else {
 		/* do not include the optional i/o */
 		while (last != mandatory && last != first) {
-			ASSERT(last->io_flags & ZIO_FLAG_OPTIONAL);
+			VERIFY(last->io_flags & ZIO_FLAG_OPTIONAL);
 			last = AVL_PREV(t, last);
-			ASSERT(last != NULL);
+			VERIFY(last != NULL);
 		}
 	}
 
@@ -787,7 +787,7 @@ vdev_queue_aggregate(vdev_queue_t *vq, zio_t *zio)
 		return (NULL);
 
 	size = IO_SPAN(first, last);
-	ASSERT3U(size, <=, maxblocksize);
+	VERIFY3U(size, <=, maxblocksize);
 
 	abd = abd_alloc_gang();
 	if (abd == NULL)
@@ -809,8 +809,8 @@ vdev_queue_aggregate(vdev_queue_t *vq, zio_t *zio)
 
 		if (dio->io_offset != next_offset) {
 			/* allocate a buffer for a read gap */
-			ASSERT3U(dio->io_type, ==, ZIO_TYPE_READ);
-			ASSERT3U(dio->io_offset, >, next_offset);
+			VERIFY3U(dio->io_type, ==, ZIO_TYPE_READ);
+			VERIFY3U(dio->io_offset, >, next_offset);
 			abd = abd_alloc_for_io(
 			    dio->io_offset - next_offset, B_TRUE);
 			abd_gang_add(aio->io_abd, abd, B_TRUE);
@@ -818,14 +818,14 @@ vdev_queue_aggregate(vdev_queue_t *vq, zio_t *zio)
 		if (dio->io_abd &&
 		    (dio->io_size != abd_get_size(dio->io_abd))) {
 			/* abd size not the same as IO size */
-			ASSERT3U(abd_get_size(dio->io_abd), >, dio->io_size);
+			VERIFY3U(abd_get_size(dio->io_abd), >, dio->io_size);
 			abd = abd_get_offset_size(dio->io_abd, 0, dio->io_size);
 			abd_gang_add(aio->io_abd, abd, B_TRUE);
 		} else {
 			if (dio->io_flags & ZIO_FLAG_NODATA) {
 				/* allocate a buffer for a write gap */
-				ASSERT3U(dio->io_type, ==, ZIO_TYPE_WRITE);
-				ASSERT3P(dio->io_abd, ==, NULL);
+				VERIFY3U(dio->io_type, ==, ZIO_TYPE_WRITE);
+				VERIFY3P(dio->io_abd, ==, NULL);
 				abd_gang_add(aio->io_abd,
 				    abd_get_zeros(dio->io_size), B_TRUE);
 			} else {
@@ -841,7 +841,7 @@ vdev_queue_aggregate(vdev_queue_t *vq, zio_t *zio)
 		}
 		next_offset = dio->io_offset + dio->io_size;
 	} while (dio != last);
-	ASSERT3U(abd_get_size(aio->io_abd), ==, aio->io_size);
+	VERIFY3U(abd_get_size(aio->io_abd), ==, aio->io_size);
 
 	/*
 	 * We need to drop the vdev queue's lock during zio_execute() to
@@ -850,7 +850,7 @@ vdev_queue_aggregate(vdev_queue_t *vq, zio_t *zio)
 	 */
 	mutex_exit(&vq->vq_lock);
 	while ((dio = zio_walk_parents(aio, &zl)) != NULL) {
-		ASSERT3U(dio->io_type, ==, aio->io_type);
+		VERIFY3U(dio->io_type, ==, aio->io_type);
 
 		zio_vdev_io_bypass(dio);
 		zio_execute(dio);
@@ -869,7 +869,7 @@ vdev_queue_io_to_issue(vdev_queue_t *vq)
 	avl_tree_t *tree;
 
 again:
-	ASSERT(MUTEX_HELD(&vq->vq_lock));
+	VERIFY(MUTEX_HELD(&vq->vq_lock));
 
 	p = vdev_queue_class_to_issue(vq);
 
@@ -891,7 +891,7 @@ again:
 	zio = avl_nearest(tree, idx, AVL_AFTER);
 	if (zio == NULL)
 		zio = avl_first(tree);
-	ASSERT3U(zio->io_priority, ==, p);
+	VERIFY3U(zio->io_priority, ==, p);
 
 	aio = vdev_queue_aggregate(vq, zio);
 	if (aio != NULL)
@@ -933,7 +933,7 @@ vdev_queue_io(zio_t *zio)
 	 * not match the child's i/o type.  Fix it up here.
 	 */
 	if (zio->io_type == ZIO_TYPE_READ) {
-		ASSERT(zio->io_priority != ZIO_PRIORITY_TRIM);
+		VERIFY(zio->io_priority != ZIO_PRIORITY_TRIM);
 
 		if (zio->io_priority != ZIO_PRIORITY_SYNC_READ &&
 		    zio->io_priority != ZIO_PRIORITY_ASYNC_READ &&
@@ -944,7 +944,7 @@ vdev_queue_io(zio_t *zio)
 			zio->io_priority = ZIO_PRIORITY_ASYNC_READ;
 		}
 	} else if (zio->io_type == ZIO_TYPE_WRITE) {
-		ASSERT(zio->io_priority != ZIO_PRIORITY_TRIM);
+		VERIFY(zio->io_priority != ZIO_PRIORITY_TRIM);
 
 		if (zio->io_priority != ZIO_PRIORITY_SYNC_WRITE &&
 		    zio->io_priority != ZIO_PRIORITY_ASYNC_WRITE &&
@@ -954,8 +954,8 @@ vdev_queue_io(zio_t *zio)
 			zio->io_priority = ZIO_PRIORITY_ASYNC_WRITE;
 		}
 	} else {
-		ASSERT(zio->io_type == ZIO_TYPE_TRIM);
-		ASSERT(zio->io_priority == ZIO_PRIORITY_TRIM);
+		VERIFY(zio->io_type == ZIO_TYPE_TRIM);
+		VERIFY(zio->io_priority == ZIO_PRIORITY_TRIM);
 	}
 
 	zio->io_flags |= ZIO_FLAG_DONT_CACHE | ZIO_FLAG_DONT_QUEUE;
@@ -1020,8 +1020,8 @@ vdev_queue_change_io_priority(zio_t *zio, zio_priority_t priority)
 	if (zio->io_priority == ZIO_PRIORITY_NOW)
 		return;
 
-	ASSERT3U(zio->io_priority, <, ZIO_PRIORITY_NUM_QUEUEABLE);
-	ASSERT3U(priority, <, ZIO_PRIORITY_NUM_QUEUEABLE);
+	VERIFY3U(zio->io_priority, <, ZIO_PRIORITY_NUM_QUEUEABLE);
+	VERIFY3U(priority, <, ZIO_PRIORITY_NUM_QUEUEABLE);
 
 	if (zio->io_type == ZIO_TYPE_READ) {
 		if (priority != ZIO_PRIORITY_SYNC_READ &&
@@ -1029,7 +1029,7 @@ vdev_queue_change_io_priority(zio_t *zio, zio_priority_t priority)
 		    priority != ZIO_PRIORITY_SCRUB)
 			priority = ZIO_PRIORITY_ASYNC_READ;
 	} else {
-		ASSERT(zio->io_type == ZIO_TYPE_WRITE);
+		VERIFY(zio->io_type == ZIO_TYPE_WRITE);
 		if (priority != ZIO_PRIORITY_SYNC_WRITE &&
 		    priority != ZIO_PRIORITY_ASYNC_WRITE)
 			priority = ZIO_PRIORITY_ASYNC_WRITE;

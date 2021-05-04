@@ -108,9 +108,9 @@ int zfs_abd_scatter_enabled = B_TRUE;
 void
 abd_verify(abd_t *abd)
 {
-	ASSERT3U(abd->abd_size, >, 0);
-	ASSERT3U(abd->abd_size, <=, SPA_MAXBLOCKSIZE);
-	ASSERT3U(abd->abd_flags, ==, abd->abd_flags & (ABD_FLAG_LINEAR |
+	VERIFY3U(abd->abd_size, >, 0);
+	VERIFY3U(abd->abd_size, <=, SPA_MAXBLOCKSIZE);
+	VERIFY3U(abd->abd_flags, ==, abd->abd_flags & (ABD_FLAG_LINEAR |
 	    ABD_FLAG_OWNER | ABD_FLAG_META | ABD_FLAG_MULTI_ZONE |
 	    ABD_FLAG_MULTI_CHUNK | ABD_FLAG_LINEAR_PAGE | ABD_FLAG_GANG |
 	    ABD_FLAG_GANG_FREE | ABD_FLAG_ZEROS | ABD_FLAG_ALLOCD));
@@ -119,17 +119,17 @@ abd_verify(abd_t *abd)
 #endif
 	IMPLY(abd->abd_flags & ABD_FLAG_META, abd->abd_flags & ABD_FLAG_OWNER);
 	if (abd_is_linear(abd)) {
-		ASSERT3P(ABD_LINEAR_BUF(abd), !=, NULL);
+		VERIFY3P(ABD_LINEAR_BUF(abd), !=, NULL);
 	} else if (abd_is_gang(abd)) {
 		uint_t child_sizes = 0;
 		for (abd_t *cabd = list_head(&ABD_GANG(abd).abd_gang_chain);
 		    cabd != NULL;
 		    cabd = list_next(&ABD_GANG(abd).abd_gang_chain, cabd)) {
-			ASSERT(list_link_active(&cabd->abd_gang_link));
+			VERIFY(list_link_active(&cabd->abd_gang_link));
 			child_sizes += cabd->abd_size;
 			abd_verify(cabd);
 		}
-		ASSERT3U(abd->abd_size, ==, child_sizes);
+		VERIFY3U(abd->abd_size, ==, child_sizes);
 	} else {
 		abd_verify_scatter(abd);
 	}
@@ -152,7 +152,7 @@ static void
 abd_fini_struct(abd_t *abd)
 {
 	mutex_destroy(&abd->abd_mtx);
-	ASSERT(!list_link_active(&abd->abd_gang_link));
+	VERIFY(!list_link_active(&abd->abd_gang_link));
 #ifdef ZFS_DEBUG
 	zfs_refcount_destroy(&abd->abd_children);
 #endif
@@ -250,7 +250,7 @@ abd_free_linear(abd_t *abd)
 static void
 abd_free_gang(abd_t *abd)
 {
-	ASSERT(abd_is_gang(abd));
+	VERIFY(abd_is_gang(abd));
 	abd_t *cabd;
 
 	while ((cabd = list_head(&ABD_GANG(abd).abd_gang_chain)) != NULL) {
@@ -261,7 +261,7 @@ abd_free_gang(abd_t *abd)
 		 * adding it to the other gang ABD.
 		 */
 		mutex_enter(&cabd->abd_mtx);
-		ASSERT(list_link_active(&cabd->abd_gang_link));
+		VERIFY(list_link_active(&cabd->abd_gang_link));
 		list_remove(&ABD_GANG(abd).abd_gang_chain, cabd);
 		mutex_exit(&cabd->abd_mtx);
 		if (cabd->abd_flags & ABD_FLAG_GANG_FREE)
@@ -358,8 +358,8 @@ abd_alloc_gang(void)
 static void
 abd_gang_add_gang(abd_t *pabd, abd_t *cabd, boolean_t free_on_free)
 {
-	ASSERT(abd_is_gang(pabd));
-	ASSERT(abd_is_gang(cabd));
+	VERIFY(abd_is_gang(pabd));
+	VERIFY(abd_is_gang(cabd));
 
 	if (free_on_free) {
 		/*
@@ -373,7 +373,7 @@ abd_gang_add_gang(abd_t *pabd, abd_t *cabd, boolean_t free_on_free)
 		pabd->abd_size += cabd->abd_size;
 		list_move_tail(&ABD_GANG(pabd).abd_gang_chain,
 		    &ABD_GANG(cabd).abd_gang_chain);
-		ASSERT(list_is_empty(&ABD_GANG(cabd).abd_gang_chain));
+		VERIFY(list_is_empty(&ABD_GANG(cabd).abd_gang_chain));
 		abd_verify(pabd);
 		abd_free(cabd);
 	} else {
@@ -398,7 +398,7 @@ abd_gang_add_gang(abd_t *pabd, abd_t *cabd, boolean_t free_on_free)
 void
 abd_gang_add(abd_t *pabd, abd_t *cabd, boolean_t free_on_free)
 {
-	ASSERT(abd_is_gang(pabd));
+	VERIFY(abd_is_gang(pabd));
 	abd_t *child_abd = NULL;
 
 	/*
@@ -407,11 +407,11 @@ abd_gang_add(abd_t *pabd, abd_t *cabd, boolean_t free_on_free)
 	 * for the offset correctly in the parent gang ABD.
 	 */
 	if (abd_is_gang(cabd)) {
-		ASSERT(!list_link_active(&cabd->abd_gang_link));
-		ASSERT(!list_is_empty(&ABD_GANG(cabd).abd_gang_chain));
+		VERIFY(!list_link_active(&cabd->abd_gang_link));
+		VERIFY(!list_is_empty(&ABD_GANG(cabd).abd_gang_chain));
 		return (abd_gang_add_gang(pabd, cabd, free_on_free));
 	}
-	ASSERT(!abd_is_gang(cabd));
+	VERIFY(!abd_is_gang(cabd));
 
 	/*
 	 * In order to verify that an ABD is not already part of
@@ -449,7 +449,7 @@ abd_gang_add(abd_t *pabd, abd_t *cabd, boolean_t free_on_free)
 		 * ABD memory allocation if the ABD can be in
 		 * multiple gang ABD's at one time.
 		 */
-		ASSERT3B(free_on_free, ==, B_FALSE);
+		VERIFY3B(free_on_free, ==, B_FALSE);
 		child_abd = abd_get_offset(cabd, 0);
 		child_abd->abd_flags |= ABD_FLAG_GANG_FREE;
 	} else {
@@ -457,7 +457,7 @@ abd_gang_add(abd_t *pabd, abd_t *cabd, boolean_t free_on_free)
 		if (free_on_free)
 			child_abd->abd_flags |= ABD_FLAG_GANG_FREE;
 	}
-	ASSERT3P(child_abd, !=, NULL);
+	VERIFY3P(child_abd, !=, NULL);
 
 	list_insert_tail(&ABD_GANG(pabd).abd_gang_chain, child_abd);
 	mutex_exit(&cabd->abd_mtx);
@@ -473,8 +473,8 @@ abd_gang_get_offset(abd_t *abd, size_t *off)
 {
 	abd_t *cabd;
 
-	ASSERT(abd_is_gang(abd));
-	ASSERT3U(*off, <, abd->abd_size);
+	VERIFY(abd_is_gang(abd));
+	VERIFY3U(*off, <, abd->abd_size);
 	for (cabd = list_head(&ABD_GANG(abd).abd_gang_chain); cabd != NULL;
 	    cabd = list_next(&ABD_GANG(abd).abd_gang_chain, cabd)) {
 		if (*off >= cabd->abd_size)
@@ -496,7 +496,7 @@ static abd_t *
 abd_get_offset_impl(abd_t *abd, abd_t *sabd, size_t off, size_t size)
 {
 	abd_verify(sabd);
-	ASSERT3U(off + size, <=, sabd->abd_size);
+	VERIFY3U(off + size, <=, sabd->abd_size);
 
 	if (abd_is_linear(sabd)) {
 		if (abd == NULL)
@@ -530,12 +530,12 @@ abd_get_offset_impl(abd_t *abd, abd_t *sabd, size_t off, size_t size)
 			left -= csize;
 			off = 0;
 		}
-		ASSERT3U(left, ==, 0);
+		VERIFY3U(left, ==, 0);
 	} else {
 		abd = abd_get_offset_scatter(abd, sabd, off);
 	}
 
-	ASSERT3P(abd, !=, NULL);
+	VERIFY3P(abd, !=, NULL);
 	abd->abd_size = size;
 #ifdef ZFS_DEBUG
 	abd->abd_parent = sabd;
@@ -575,7 +575,7 @@ abd_get_offset(abd_t *sabd, size_t off)
 abd_t *
 abd_get_offset_size(abd_t *sabd, size_t off, size_t size)
 {
-	ASSERT3U(off + size, <=, sabd->abd_size);
+	VERIFY3U(off + size, <=, sabd->abd_size);
 	return (abd_get_offset_impl(NULL, sabd, off, size));
 }
 
@@ -585,8 +585,8 @@ abd_get_offset_size(abd_t *sabd, size_t off, size_t size)
 abd_t *
 abd_get_zeros(size_t size)
 {
-	ASSERT3P(abd_zero_scatter, !=, NULL);
-	ASSERT3U(size, <=, SPA_MAXBLOCKSIZE);
+	VERIFY3P(abd_zero_scatter, !=, NULL);
+	VERIFY3U(size, <=, SPA_MAXBLOCKSIZE);
 	return (abd_get_offset_size(abd_zero_scatter, 0, size));
 }
 
@@ -619,7 +619,7 @@ abd_get_from_buf(void *buf, size_t size)
 void *
 abd_to_buf(abd_t *abd)
 {
-	ASSERT(abd_is_linear(abd));
+	VERIFY(abd_is_linear(abd));
 	abd_verify(abd);
 	return (ABD_LINEAR_BUF(abd));
 }
@@ -635,7 +635,7 @@ abd_borrow_buf(abd_t *abd, size_t n)
 {
 	void *buf;
 	abd_verify(abd);
-	ASSERT3U(abd->abd_size, >=, n);
+	VERIFY3U(abd->abd_size, >=, n);
 	if (abd_is_linear(abd)) {
 		buf = abd_to_buf(abd);
 	} else {
@@ -667,11 +667,11 @@ void
 abd_return_buf(abd_t *abd, void *buf, size_t n)
 {
 	abd_verify(abd);
-	ASSERT3U(abd->abd_size, >=, n);
+	VERIFY3U(abd->abd_size, >=, n);
 	if (abd_is_linear(abd)) {
-		ASSERT3P(buf, ==, abd_to_buf(abd));
+		VERIFY3P(buf, ==, abd_to_buf(abd));
 	} else {
-		ASSERT0(abd_cmp_buf(abd, buf, n));
+		VERIFY0(abd_cmp_buf(abd, buf, n));
 		zio_buf_free(buf, n);
 	}
 #ifdef ZFS_DEBUG
@@ -691,8 +691,8 @@ abd_return_buf_copy(abd_t *abd, void *buf, size_t n)
 void
 abd_release_ownership_of_buf(abd_t *abd)
 {
-	ASSERT(abd_is_linear(abd));
-	ASSERT(abd->abd_flags & ABD_FLAG_OWNER);
+	VERIFY(abd_is_linear(abd));
+	VERIFY(abd->abd_flags & ABD_FLAG_OWNER);
 
 	/*
 	 * abd_free() needs to handle LINEAR_PAGE ABD's specially.
@@ -701,7 +701,7 @@ abd_release_ownership_of_buf(abd_t *abd)
 	 * abd_take_ownership_of_buf() sequence, we don't allow releasing
 	 * these "linear but not zio_[data_]buf_alloc()'ed" ABD's.
 	 */
-	ASSERT(!abd_is_linear_page(abd));
+	VERIFY(!abd_is_linear_page(abd));
 
 	abd_verify(abd);
 
@@ -722,8 +722,8 @@ abd_release_ownership_of_buf(abd_t *abd)
 void
 abd_take_ownership_of_buf(abd_t *abd, boolean_t is_metadata)
 {
-	ASSERT(abd_is_linear(abd));
-	ASSERT(!(abd->abd_flags & ABD_FLAG_OWNER));
+	VERIFY(abd_is_linear(abd));
+	VERIFY(!(abd->abd_flags & ABD_FLAG_OWNER));
 	abd_verify(abd);
 
 	abd->abd_flags |= ABD_FLAG_OWNER;
@@ -767,7 +767,7 @@ abd_advance_abd_iter(abd_t *abd, abd_t *cabd, struct abd_iter *aiter,
 {
 	abd_iter_advance(aiter, len);
 	if (abd_is_gang(abd) && abd_iter_at_end(aiter)) {
-		ASSERT3P(cabd, !=, NULL);
+		VERIFY3P(cabd, !=, NULL);
 		cabd = list_next(&ABD_GANG(abd).abd_gang_chain, cabd);
 		if (cabd) {
 			abd_iter_init(aiter, cabd);
@@ -788,7 +788,7 @@ abd_iterate_func(abd_t *abd, size_t off, size_t size,
 		return (0);
 
 	abd_verify(abd);
-	ASSERT3U(off + size, <=, abd->abd_size);
+	VERIFY3U(off + size, <=, abd->abd_size);
 
 	boolean_t gang = abd_is_gang(abd);
 	abd_t *c_abd = abd_init_abd_iter(abd, &aiter, off);
@@ -801,7 +801,7 @@ abd_iterate_func(abd_t *abd, size_t off, size_t size,
 		abd_iter_map(&aiter);
 
 		size_t len = MIN(aiter.iter_mapsize, size);
-		ASSERT3U(len, >, 0);
+		VERIFY3U(len, >, 0);
 
 		ret = func(aiter.iter_mapaddr, len, private);
 
@@ -927,8 +927,8 @@ abd_iterate_func2(abd_t *dabd, abd_t *sabd, size_t doff, size_t soff,
 	abd_verify(dabd);
 	abd_verify(sabd);
 
-	ASSERT3U(doff + size, <=, dabd->abd_size);
-	ASSERT3U(soff + size, <=, sabd->abd_size);
+	VERIFY3U(doff + size, <=, dabd->abd_size);
+	VERIFY3U(soff + size, <=, sabd->abd_size);
 
 	dabd_is_gang_abd = abd_is_gang(dabd);
 	sabd_is_gang_abd = abd_is_gang(sabd);
@@ -947,7 +947,7 @@ abd_iterate_func2(abd_t *dabd, abd_t *sabd, size_t doff, size_t soff,
 		size_t dlen = MIN(daiter.iter_mapsize, size);
 		size_t slen = MIN(saiter.iter_mapsize, size);
 		size_t len = MIN(dlen, slen);
-		ASSERT(dlen > 0 || slen > 0);
+		VERIFY(dlen > 0 || slen > 0);
 
 		ret = func(daiter.iter_mapaddr, saiter.iter_mapaddr, len,
 		    private);
@@ -999,7 +999,7 @@ abd_cmp_cb(void *bufa, void *bufb, size_t size, void *private)
 int
 abd_cmp(abd_t *dabd, abd_t *sabd)
 {
-	ASSERT3U(dabd->abd_size, ==, sabd->abd_size);
+	VERIFY3U(dabd->abd_size, ==, sabd->abd_size);
 	return (abd_iterate_func2(dabd, sabd, 0, 0, dabd->abd_size,
 	    abd_cmp_cb, NULL));
 }
@@ -1028,7 +1028,7 @@ abd_raidz_gen_iterate(abd_t **cabds, abd_t *dabd,
 	boolean_t cabds_is_gang_abd[3];
 	boolean_t dabd_is_gang_abd = B_FALSE;
 
-	ASSERT3U(parity, <=, 3);
+	VERIFY3U(parity, <=, 3);
 
 	for (i = 0; i < parity; i++) {
 		cabds_is_gang_abd[i] = abd_is_gang(cabds[i]);
@@ -1040,7 +1040,7 @@ abd_raidz_gen_iterate(abd_t **cabds, abd_t *dabd,
 		c_dabd = abd_init_abd_iter(dabd, &daiter, 0);
 	}
 
-	ASSERT3S(dsize, >=, 0);
+	VERIFY3S(dsize, >=, 0);
 
 	abd_enter_critical(flags);
 	while (csize > 0) {
@@ -1076,7 +1076,7 @@ abd_raidz_gen_iterate(abd_t **cabds, abd_t *dabd,
 		}
 
 		/* must be progressive */
-		ASSERT3S(len, >, 0);
+		VERIFY3S(len, >, 0);
 
 		if (dabd && dsize > 0) {
 			/* this needs precise iter.length */
@@ -1086,12 +1086,12 @@ abd_raidz_gen_iterate(abd_t **cabds, abd_t *dabd,
 			dlen = 0;
 
 		/* must be progressive */
-		ASSERT3S(len, >, 0);
+		VERIFY3S(len, >, 0);
 		/*
 		 * The iterated function likely will not do well if each
 		 * segment except the last one is not multiple of 512 (raidz).
 		 */
-		ASSERT3U(((uint64_t)len & 511ULL), ==, 0);
+		VERIFY3U(((uint64_t)len & 511ULL), ==, 0);
 
 		func_raidz_gen(caddrs, daiter.iter_mapaddr, len, dlen);
 
@@ -1112,8 +1112,8 @@ abd_raidz_gen_iterate(abd_t **cabds, abd_t *dabd,
 
 		csize -= len;
 
-		ASSERT3S(dsize, >=, 0);
-		ASSERT3S(csize, >=, 0);
+		VERIFY3S(dsize, >=, 0);
+		VERIFY3S(csize, >=, 0);
 	}
 	abd_exit_critical(flags);
 }
@@ -1146,7 +1146,7 @@ abd_raidz_rec_iterate(abd_t **cabds, abd_t **tabds,
 	abd_t *c_cabds[3];
 	abd_t *c_tabds[3];
 
-	ASSERT3U(parity, <=, 3);
+	VERIFY3U(parity, <=, 3);
 
 	for (i = 0; i < parity; i++) {
 		cabds_is_gang_abd[i] = abd_is_gang(cabds[i]);
@@ -1190,12 +1190,12 @@ abd_raidz_rec_iterate(abd_t **cabds, abd_t **tabds,
 				len = MIN(citers[0].iter_mapsize, len);
 		}
 		/* must be progressive */
-		ASSERT3S(len, >, 0);
+		VERIFY3S(len, >, 0);
 		/*
 		 * The iterated function likely will not do well if each
 		 * segment except the last one is not multiple of 512 (raidz).
 		 */
-		ASSERT3U(((uint64_t)len & 511ULL), ==, 0);
+		VERIFY3U(((uint64_t)len & 511ULL), ==, 0);
 
 		func_raidz_rec(xaddrs, len, caddrs, mul);
 
@@ -1211,7 +1211,7 @@ abd_raidz_rec_iterate(abd_t **cabds, abd_t **tabds,
 		}
 
 		tsize -= len;
-		ASSERT3S(tsize, >=, 0);
+		VERIFY3S(tsize, >=, 0);
 	}
 	abd_exit_critical(flags);
 }

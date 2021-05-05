@@ -655,7 +655,6 @@ vdev_queue_aggregate(vdev_queue_t *vq, zio_t *zio)
 	avl_tree_t *t = vdev_queue_type_tree(vq, zio->io_type);
 	enum zio_flag flags = zio->io_flags & ZIO_FLAG_AGG_INHERIT;
 	uint64_t next_offset;
-	abd_t *abd;
 
 	maxblocksize = spa_maxblocksize(vq->vq_vdev->vdev_spa);
 	if (vq->vq_vdev->vdev_nonrot)
@@ -789,12 +788,12 @@ vdev_queue_aggregate(vdev_queue_t *vq, zio_t *zio)
 	size = IO_SPAN(first, last);
 	VERIFY3U(size, <=, maxblocksize);
 
-	abd = abd_alloc_gang();
-	if (abd == NULL)
+	abd_t *gabd = abd_alloc_gang();
+	if (gabd == NULL)
 		return (NULL);
 
 	aio = zio_vdev_delegated_io(first->io_vd, first->io_offset,
-	    abd, size, first->io_type, zio->io_priority,
+	    gabd, size, first->io_type, zio->io_priority,
 	    flags | ZIO_FLAG_DONT_CACHE | ZIO_FLAG_DONT_QUEUE,
 	    vdev_queue_agg_io_done, NULL);
 	aio->io_timestamp = first->io_timestamp;
@@ -802,6 +801,7 @@ vdev_queue_aggregate(vdev_queue_t *vq, zio_t *zio)
 	nio = first;
 	next_offset = first->io_offset;
 	do {
+		abd_t *labd = NULL;
 		dio = nio;
 		nio = AVL_NEXT(t, dio);
 		zio_add_child(dio, aio);
@@ -811,17 +811,18 @@ vdev_queue_aggregate(vdev_queue_t *vq, zio_t *zio)
 			/* allocate a buffer for a read gap */
 			VERIFY3U(dio->io_type, ==, ZIO_TYPE_READ);
 			VERIFY3U(dio->io_offset, >, next_offset);
-			abd = abd_alloc_for_io(
+			labd = abd_alloc_for_io(
 			    dio->io_offset - next_offset, B_TRUE);
-			abd_gang_add(aio->io_abd, abd, B_TRUE);
+			abd_gang_add(aio->io_abd, labd, B_TRUE);
 		}
 		if (dio->io_abd &&
 		    (dio->io_size != abd_get_size(dio->io_abd))) {
 			/* abd size not the same as IO size */
 			VERIFY3U(abd_get_size(dio->io_abd), >, dio->io_size);
 			VERIFY3U(dio->io_size, >, 0);
-			abd = abd_get_offset_size(dio->io_abd, 0, dio->io_size);
-			abd_gang_add(aio->io_abd, abd, B_TRUE);
+			labd = abd_get_offset_size(
+			    dio->io_abd, 0, dio->io_size);
+			abd_gang_add(aio->io_abd, labd, B_TRUE);
 		} else {
 			if (dio->io_flags & ZIO_FLAG_NODATA) {
 				/* allocate a buffer for a write gap */

@@ -442,7 +442,7 @@ vdev_raidz_map_alloc(zio_t *zio, uint64_t ashift, uint64_t dcols,
 
 	VERIFY3U(acols, <=, scols);
 
-	rr = kmem_alloc(offsetof(raidz_row_t, rr_col[scols]), KM_SLEEP);
+	rr = kmem_zalloc(offsetof(raidz_row_t, rr_col[scols]), KM_SLEEP);
 	rm->rm_row[0] = rr;
 
 	rr->rr_cols = acols;

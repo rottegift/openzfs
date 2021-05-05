@@ -106,7 +106,7 @@ static size_t
 abd_chunkcnt_for_bytes(size_t size)
 {
 	VERIFY3U(P2ROUNDUP(size, zfs_abd_chunk_size), ==,
-	    ZOL_P2ROUNDUP_TYPE(size, zfs_abd_chunk_size, size_t));
+	    ZOL_P2ROUNDUP_TYPED(size, zfs_abd_chunk_size, size_t));
 	return (P2ROUNDUP(size, zfs_abd_chunk_size) / zfs_abd_chunk_size);
 }
 

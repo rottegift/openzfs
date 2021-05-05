@@ -819,6 +819,7 @@ vdev_queue_aggregate(vdev_queue_t *vq, zio_t *zio)
 		    (dio->io_size != abd_get_size(dio->io_abd))) {
 			/* abd size not the same as IO size */
 			VERIFY3U(abd_get_size(dio->io_abd), >, dio->io_size);
+			VERIFY3U(dio->io_size, >, 0);
 			abd = abd_get_offset_size(dio->io_abd, 0, dio->io_size);
 			abd_gang_add(aio->io_abd, abd, B_TRUE);
 		} else {

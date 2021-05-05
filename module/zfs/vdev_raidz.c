@@ -391,7 +391,7 @@ noinline raidz_map_t *
 vdev_raidz_map_alloc(zio_t *zio, uint64_t ashift, uint64_t dcols,
     uint64_t nparity)
 {
-	raidz_row_t *rr;
+	raidz_row_t *rr = { 0 };
 	/* The starting RAIDZ (parent) vdev sector of the block. */
 	uint64_t b = zio->io_offset >> ashift;
 	/* The zio's size in units of the vdev's minimum sector size. */

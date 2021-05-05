@@ -497,6 +497,7 @@ abd_get_offset_impl(abd_t *abd, abd_t *sabd, size_t off, size_t size)
 {
 	abd_verify(sabd);
 	VERIFY3U(off + size, <=, sabd->abd_size);
+	VERIFY3U(size, >, 0);
 
 	if (abd_is_linear(sabd)) {
 		if (abd == NULL)

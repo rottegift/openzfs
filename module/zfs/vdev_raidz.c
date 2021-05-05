@@ -135,15 +135,16 @@
 	VDEV_RAIDZ_64MUL_2((x), mask); \
 }
 
-void vdev_raidz_row_free_abd(abd_t *);
+void vdev_raidz_row_free_abd(abd_t *, raidz_col_t *);
 void vdev_raidz_row_free_gdata(abd_t *);
 void vdev_raidz_row_free_origdata(abd_t *);
 void vdev_raidz_row_free_copy(abd_t *);
 void vdev_raidz_row_free_empty(abd_t *);
 
 void
-vdev_raidz_row_free_abd(abd_t *abd)
+vdev_raidz_row_free_abd(abd_t *abd, raidz_col_t *rc)
 {
+	VERIFY3P(rc->rc_abd, !=, &rc->rc_abdstruct);
 	abd_free(abd);
 }
 
@@ -178,7 +179,7 @@ vdev_raidz_row_free(raidz_row_t *rr)
 		raidz_col_t *rc = &rr->rr_col[c];
 
 		if (rc->rc_size != 0)
-			vdev_raidz_row_free_abd(rc->rc_abd);
+			vdev_raidz_row_free_abd(rc->rc_abd, rc);
 		if (rc->rc_gdata != NULL)
 			vdev_raidz_row_free_gdata(rc->rc_gdata);
 		if (rc->rc_orig_data != NULL)

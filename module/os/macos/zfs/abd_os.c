@@ -98,9 +98,15 @@ abd_free_chunk(void *c)
 	kmem_cache_free(abd_chunk_cache, c);
 }
 
+/* from include/os/linux/spl/sys/sysmacros.h */
+#define	ZOL_P2ROUNDUP_TYPED(x, align, type) \
+	((((type)(x) - 1) | ((type)(align) - 1)) + 1)
+
 static size_t
 abd_chunkcnt_for_bytes(size_t size)
 {
+	VERIFY3U(P2ROUNDUP(size, zfs_abd_chunk_size), ==,
+	    ZOL_P2ROUNDUP_TYPE(size, zfs_abd_chunk_size, size_t));
 	return (P2ROUNDUP(size, zfs_abd_chunk_size) / zfs_abd_chunk_size);
 }
 

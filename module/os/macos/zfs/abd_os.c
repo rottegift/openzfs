@@ -40,6 +40,7 @@ typedef struct abd_stats {
 	kstat_named_t abdstat_scatter_chunk_waste;
 	kstat_named_t abdstat_linear_cnt;
 	kstat_named_t abdstat_linear_data_size;
+	kstat_named_t abdstat_scatter_free_mismatch;
 } abd_stats_t;
 
 static abd_stats_t abd_stats = {
@@ -67,6 +68,8 @@ static abd_stats_t abd_stats = {
 	{ "linear_cnt",				KSTAT_DATA_UINT64 },
 	/* Amount of data stored in all linear ABDs tracked by linear_cnt */
 	{ "linear_data_size",			KSTAT_DATA_UINT64 },
+	/* Number of times calculated free size is unequal to actual alloc */
+	{ "alloc_free_mismatch",		KSTAT_DATA_UINT64 },
 };
 
 /*
@@ -225,7 +228,7 @@ abd_free_struct_impl(abd_t *abd)
 	 *      Use the original allocation size if it is larger than size.
 	 */
 	if (!abd_is_linear(abd) && !abd_is_gang(abd)) {
-		ASSERT3U(size, ==, abd->abd_orig_size);
+		ABDSTAT_BUMP(abdstat_scatter_free_mismatch);
 		if (size < abd->abd_orig_size)
 			size = abd->abd_orig_size;
 	}

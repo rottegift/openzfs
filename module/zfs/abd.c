@@ -152,6 +152,7 @@ static void
 abd_fini_struct(abd_t *abd)
 {
 	mutex_enter(&abd->abd_mtx);
+	mutex_exit(&abd->abd_mtx);
 	mutex_destroy(&abd->abd_mtx);
 	VERIFY(!list_link_active(&abd->abd_gang_link));
 #ifdef ZFS_DEBUG

@@ -144,7 +144,6 @@ void vdev_raidz_row_free_empty(abd_t *);
 void
 vdev_raidz_row_free_abd(abd_t *abd, raidz_col_t *rc)
 {
-	VERIFY3P(rc->rc_abd, !=, &rc->rc_abdstruct);
 	abd_free(abd);
 }
 

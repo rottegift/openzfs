@@ -149,6 +149,7 @@ vdev_raidz_row_free_abd(abd_t *abd, raidz_col_t *rc)
 	mutex_exit(&abd->abd_mtx);
 	IMPLY(((abd->abd_flags & ABD_FLAG_ALLOCD) == ABD_FLAG_ALLOCD),
 	    (abd != &rc->rc_abdstruct));
+	ASSERT3U(abd->abd_size, ==, rc->rc_size);
 	abd_free(abd);
 }
 
@@ -506,6 +507,9 @@ vdev_raidz_map_alloc(zio_t *zio, uint64_t ashift, uint64_t dcols,
 		raidz_col_t *rc = &rr->rr_col[c];
 		rc->rc_abd = abd_get_offset_struct(&rc->rc_abdstruct,
 		    zio->io_abd, off, rc->rc_size);
+		if (rc->rc_abd != &rc->rc_abdstruct)
+			ASSERT3U(rc->rc_abd->abd_size, ==,
+			    rc->rc_size);
 		off += rc->rc_size;
 	}
 

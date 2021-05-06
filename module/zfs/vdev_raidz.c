@@ -505,11 +505,17 @@ vdev_raidz_map_alloc(zio_t *zio, uint64_t ashift, uint64_t dcols,
 
 	for (uint64_t off = 0; c < acols; c++) {
 		raidz_col_t *rc = &rr->rr_col[c];
+#if 0
 		rc->rc_abd = abd_get_offset_struct(&rc->rc_abdstruct,
 		    zio->io_abd, off, rc->rc_size);
 		if (rc->rc_abd != &rc->rc_abdstruct)
 			ASSERT3U(rc->rc_abd->abd_size, ==,
 			    rc->rc_size);
+#else
+		/* pre e2af2acce3436acdb2b35fdc7c9de1a30ea85514 */
+		rc->rc_abd = abd_get_offset_size(zio->io_abd, off, rc->rc_size);
+#endif
+
 		off += rc->rc_size;
 	}
 

@@ -55,6 +55,11 @@
 // OS Interface
 // ===============================================================
 
+/*
+ * avoid kmem_error name collision
+ */
+#define	kmem_error(x, y, z)	spl_kmem_error(x, y, z)
+
 // 3500 kern.spl_vm_page_free_min, rarely changes
 const unsigned int spl_vm_page_free_min = 3500;
 
@@ -818,7 +823,7 @@ kmem_findslab(kmem_cache_t *cp, void *buf)
 	return (NULL);
 }
 
-static void
+void
 kmem_error(int error, kmem_cache_t *cparg, void *bufarg)
 {
 	kmem_buftag_t *btp = NULL;
@@ -959,8 +964,12 @@ kmem_error(int error, kmem_cache_t *cparg, void *bufarg)
 	}
 
 	if (kmem_panic > 0) {
-		extern  void IODelay(unsigned microseconds); // <IOKit/IOLib.h?
-		IODelay(1000000);
+		/*
+		 * put this thread to sleep for 5 seconds
+		 * before calling panic.
+		 */
+		extern void IOSleep(unsigned milliseconds); // <IOKit/IOLib.h>
+		IOSleep(5000);
 		panic("kernel heap corruption detected");
 	}
 

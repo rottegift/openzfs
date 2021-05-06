@@ -46,6 +46,8 @@
 #include <sys/callb.h>
 #include <stdbool.h>
 
+#define	kmem_error(x, y, z) spl_kmem_error(x, y, z)
+
 // ===============================================================
 // Options
 // ===============================================================
@@ -819,7 +821,7 @@ kmem_findslab(kmem_cache_t *cp, void *buf)
 	return (NULL);
 }
 
-static void
+void
 kmem_error(int error, kmem_cache_t *cparg, void *bufarg)
 {
 	kmem_buftag_t *btp = NULL;

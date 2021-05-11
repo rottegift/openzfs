@@ -195,8 +195,7 @@ abd_alloc(size_t size, boolean_t is_metadata)
 	if (is_metadata) {
 		abd->abd_flags |= ABD_FLAG_META;
 	}
-	/* abd_orig_size may be larger, and if so save that */
-	abd->abd_size = MAX(size, abd->abd_orig_size);
+	abd->abd_size = size;
 
 	abd_update_scatter_stats(abd, ABDSTAT_INCR);
 

@@ -165,7 +165,12 @@ abd_verify_scatter(abd_t *abd)
 		    ABD_SCATTER(abd).abd_chunks[i], !=, NULL);
 	}
 	if (abd->abd_orig_size != 0) {
-		VERIFY3U(abd->abd_orig_size, ==, abd->abd_size);
+		uint_t chunkcnt = abd_scatter_chunkcnt(abd);
+		int64_t calc_abd_free_size =
+		    offsetof(abd_t, abd_u.abd_scatter.abd_chunks[chunkcnt]);
+		if (calc_abd_free_size < sizeof (abd_t))
+			calc_abd_free_size = sizeof (abd_t);
+		VERIFY3U(abd->abd_orig_size, ==, calc_abd_free_size);
 	}
 }
 

@@ -164,7 +164,8 @@ abd_verify_scatter(abd_t *abd)
 		VERIFY3P(
 		    ABD_SCATTER(abd).abd_chunks[i], !=, NULL);
 	}
-	if (abd->abd_orig_size != 0) {
+	if (abd->abd_orig_size != 0 &&
+	    (abd->abd_flags & ABD_FLAG_ALLOCD) == ABD_FLAG_ALLOCD) {
 		VERIFY3U(abd->abd_orig_size, ==, abd->abd_size);
 	}
 }

@@ -270,7 +270,21 @@ abd_free_struct_scatter(abd_t *abd)
 		size = sizeof (abd_t);
 
 	if (abd->abd_orig_size != 0) {
-		VERIFY3U(abd->abd_size, ==, abd->abd_orig_size);
+		if (size != abd->abd_orig_size) {
+			panic("ZFS: %s:%d:"
+			    " size != abd_orig_size"
+			    " %lld != %u"
+			    " (abd_size = %u,"
+			    " chunkcnt = %u,"
+			    " abd_flags = 0x%x,"
+			    " abd_offset = %u)\n",
+			    __func__, __LINE__,
+			    size, abd->abd_orig_size,
+			    abd->abd_size,
+			    chunkcnt,
+			    abd->abd_flags,
+			    ABD_SCATTER(abd).abd_offset);
+		}
 	}
 	kmem_free(abd, size);
 	ABDSTAT_INCR(abdstat_struct_size, -size);

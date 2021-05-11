@@ -634,6 +634,19 @@ vdev_queue_agg_io_done(zio_t *aio)
 #define	IO_SPAN(fio, lio) ((lio)->io_offset + (lio)->io_size - (fio)->io_offset)
 #define	IO_GAP(fio, lio) (-IO_SPAN(lio, fio))
 
+static uint_t
+dio_abd_get_size(abd_t *abd)
+{
+	return (abd_get_size(abd));
+}
+
+static uint_t
+aio_abd_get_size(abd_t *abd)
+{
+	return (abd_get_size(abd));
+}
+
+
 /*
  * Sufficiently adjacent io_offset's in ZIOs will be aggregated. We do this
  * by creating a gang ABD from the adjacent ZIOs io_abd's. By using
@@ -816,7 +829,7 @@ vdev_queue_aggregate(vdev_queue_t *vq, zio_t *zio)
 			abd_gang_add(aio->io_abd, abd, B_TRUE);
 		}
 		if (dio->io_abd &&
-		    (dio->io_size != abd_get_size(dio->io_abd))) {
+		    (dio->io_size != dio_abd_get_size(dio->io_abd))) {
 			/* abd size not the same as IO size */
 			VERIFY3U(abd_get_size(dio->io_abd), >, dio->io_size);
 			VERIFY3U(dio->io_size, >, 0);
@@ -842,7 +855,7 @@ vdev_queue_aggregate(vdev_queue_t *vq, zio_t *zio)
 		}
 		next_offset = dio->io_offset + dio->io_size;
 	} while (dio != last);
-	VERIFY3U(abd_get_size(aio->io_abd), ==, aio->io_size);
+	VERIFY3U(aio_abd_get_size(aio->io_abd), ==, aio->io_size);
 
 	/*
 	 * We need to drop the vdev queue's lock during zio_execute() to

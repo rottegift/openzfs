@@ -202,8 +202,7 @@ abd_is_gang(abd_t *abd)
 static inline uint_t
 abd_get_size(abd_t *abd)
 {
-	if (abd->abd_orig_size != 0)
-		VERIFY3U(abd->abd_orig_size, ==, abd->abd_size);
+	abd_verify(abd);
 	return (abd->abd_size);
 }
 

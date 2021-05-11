@@ -164,6 +164,9 @@ abd_verify_scatter(abd_t *abd)
 		VERIFY3P(
 		    ABD_SCATTER(abd).abd_chunks[i], !=, NULL);
 	}
+	if (abd->abd_orig_size != 0) {
+		VERIFY3U(abd->abd_orig_size, ==, abd->abd_size);
+	}
 }
 
 void
@@ -231,6 +234,7 @@ abd_alloc_struct_impl(size_t size)
 
 	abd_t *abd = kmem_zalloc(abd_size, KM_PUSHPAGE);
 	VERIFY3P(abd, !=, NULL);
+	abd->abd_orig_size = abd_size;
 	ABDSTAT_INCR(abdstat_struct_size, abd_size);
 
 	return (abd);
@@ -260,6 +264,9 @@ abd_free_struct_scatter(abd_t *abd)
 	if (size < sizeof (abd_t))
 		size = sizeof (abd_t);
 
+	if (abd->abd_orig_size != 0) {
+		VERIFY3U(abd->abd_size, ==, abd->abd_orig_size);
+	}
 	kmem_free(abd, size);
 	ABDSTAT_INCR(abdstat_struct_size, -size);
 }

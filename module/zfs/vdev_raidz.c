@@ -473,6 +473,7 @@ vdev_raidz_map_alloc(zio_t *zio, uint64_t ashift, uint64_t dcols,
 		rc->rc_abd = NULL;
 		rc->rc_gdata = NULL;
 		rc->rc_orig_data = NULL;
+		rc->rc_abdstruct.abd_orig_size = 0;
 		rc->rc_error = 0;
 		rc->rc_tried = 0;
 		rc->rc_skipped = 0;

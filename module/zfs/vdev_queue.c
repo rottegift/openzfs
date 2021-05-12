@@ -840,8 +840,15 @@ vdev_queue_aggregate(vdev_queue_t *vq, zio_t *zio)
 				/* allocate a buffer for a write gap */
 				VERIFY3U(dio->io_type, ==, ZIO_TYPE_WRITE);
 				VERIFY3P(dio->io_abd, ==, NULL);
+#if 0
 				abd_gang_add(aio->io_abd,
 				    abd_get_zeros(dio->io_size), B_TRUE);
+#else
+				VERIFY3U(dio->io_offset, >=, aio->io_offset);
+				abd_zero_off(aio->io_abd,
+				    dio->io_offset - aio->io_offset,
+				    dio->io_size);
+#endif
 			} else {
 				/*
 				 * We pass B_FALSE to abd_gang_add()

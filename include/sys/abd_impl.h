@@ -71,7 +71,7 @@ boolean_t abd_size_alloc_linear(size_t);
 void abd_update_scatter_stats(abd_t *, abd_stats_op_t);
 void abd_update_linear_stats(abd_t *, abd_stats_op_t);
 void abd_verify_scatter(abd_t *);
-void abd_verify_scatter_gangchild(abd_t *);
+void abd_vs_gangchild(abd_t *);
 void abd_free_linear_page(abd_t *);
 /* OS specific abd_iter functions */
 void abd_iter_init(struct abd_iter  *, abd_t *);

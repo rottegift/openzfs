@@ -175,7 +175,7 @@ abd_verify_scatter(abd_t *abd)
 }
 
 void
-abd_verify_scatter_gangchild(abd_t *abd)
+abd_vs_gangchild(abd_t *abd)
 {
 	/*
 	 * There is no scatter linear pages in FreeBSD so there is an
@@ -194,7 +194,7 @@ abd_verify_scatter_gangchild(abd_t *abd)
 	 * if we are not supposed to free them?
 	 */
 	if (abd->abd_orig_size != 0 &&
-	    (abd->abd_flags & ABD_FLAG_GANG_FREE)) {
+	    !(abd->abd_flags & ABD_FLAG_GOTZEROS)) {
 		uint_t chunkcnt = abd_scatter_chunkcnt(abd);
 		int64_t calc_abd_free_size =
 		    offsetof(abd_t, abd_u.abd_scatter.abd_chunks[chunkcnt]);

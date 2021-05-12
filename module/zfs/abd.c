@@ -132,7 +132,7 @@ abd_verify_subgang(abd_t *abd)
 		}
 		VERIFY3U(abd->abd_size, ==, child_sizes);
 	} else {
-		abd_verify_scatter_gangchild(abd);
+		abd_vs_gangchild(abd);
 	}
 }
 

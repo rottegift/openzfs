@@ -335,14 +335,7 @@ abd_get_offset_scatter(abd_t *abd, abd_t *sabd, size_t size, size_t off)
 
 	if (abd == NULL) {
 		/*
-		 * Feeding 0 to abd_alloc_struct(size) makes
-		 * us look like we are doing a linear, gang,
-		 * or other allocaiton.
-		 */
-		VERIFY3U(size, >, 0);
-
-		/*
-		 * we get an abd struct that can hold
+		 * We get an abd struct that can hold
 		 * the number of bytes requested, increased
 		 * by the new offset
 		 */

@@ -339,14 +339,11 @@ abd_get_offset_scatter(abd_t *abd, abd_t *sabd, size_t size, size_t off)
 		 * the number of bytes requested, increased
 		 * by the new offset
 		 */
-		size_t new_size = size +
-		    (new_offset % zfs_abd_chunk_size);
-
-		abd = abd_alloc_struct(new_size);
+		abd = abd_alloc_struct(size+new_offset);
 		VERIFY3P(abd, !=, NULL);
 		VERIFY3U(chunkcnt, >=,
-		    abd_chunkcnt_for_bytes(new_size));
-		chunkcnt = abd_chunkcnt_for_bytes(new_size);
+		    abd_chunkcnt_for_bytes(size+new_offset));
+		chunkcnt = abd_chunkcnt_for_bytes(size+new_offset);
 	}
 
 	/*

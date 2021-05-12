@@ -646,6 +646,12 @@ aio_abd_get_size(abd_t *abd)
 	return (abd_get_size(abd));
 }
 
+static void
+abd_verify_z(abd_t *abd)
+{
+	abd_verify(abd);
+}
+
 
 /*
  * Sufficiently adjacent io_offset's in ZIOs will be aggregated. We do this
@@ -840,8 +846,10 @@ vdev_queue_aggregate(vdev_queue_t *vq, zio_t *zio)
 				/* allocate a buffer for a write gap */
 				VERIFY3U(dio->io_type, ==, ZIO_TYPE_WRITE);
 				VERIFY3P(dio->io_abd, ==, NULL);
+				abd = abd_get_zeros(dio->io_size);
+				abd_verify_z(abd);
 				abd_gang_add(aio->io_abd,
-				    abd_get_zeros(dio->io_size), B_TRUE);
+				    abd, B_TRUE);
 			} else {
 				/*
 				 * We pass B_FALSE to abd_gang_add()

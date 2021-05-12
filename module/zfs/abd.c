@@ -565,7 +565,11 @@ abd_get_offset_impl(abd_t *abd, abd_t *sabd, size_t off, size_t size)
 		}
 		VERIFY3U(left, ==, 0);
 	} else {
+#if defined(__APPLE__) && defined(_KERNEL)
+		abd = abd_get_offset_scatter(abd, sabd, off, size);
+#else
 		abd = abd_get_offset_scatter(abd, sabd, off);
+#endif
 	}
 
 	VERIFY3P(abd, !=, NULL);

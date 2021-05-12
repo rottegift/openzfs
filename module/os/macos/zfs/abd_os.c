@@ -452,7 +452,7 @@ abd_alloc_for_io(size_t size, boolean_t is_metadata)
 }
 
 abd_t *
-abd_get_offset_scatter(abd_t *abd, abd_t *sabd, size_t off)
+abd_get_offset_scatter(abd_t *abd, abd_t *sabd, size_t size, size_t off)
 {
 	abd_verify(sabd);
 	VERIFY3U(off, <=, sabd->abd_size);
@@ -477,9 +477,18 @@ abd_get_offset_scatter(abd_t *abd, abd_t *sabd, size_t off)
 		 * us look like we are doing a linear, gang,
 		 * or other allocaiton.
 		 */
-		VERIFY3U((chunkcnt * zfs_abd_chunk_size), >, 0);
+		VERIFY3U(size, >, 0);
 
-		abd = abd_alloc_struct(chunkcnt * zfs_abd_chunk_size);
+		/*
+		 * we get an abd struct that can hold
+		 * the number of bytes requested, increased
+		 * by the new offset
+		 */
+		abd = abd_alloc_struct(size+new_offset);
+		VERIFY3P(abd, !=, NULL);
+		VERIFY3U(chunkcnt, >=,
+		    abd_chunkcnt_for_bytes(size+new_offset));
+		chunkcnt = abd_chunkcnt_for_bytes(size+new_offset);
 	}
 
 	/*

@@ -317,7 +317,7 @@ abd_t *
 abd_get_offset_scatter(abd_t *abd, abd_t *sabd, size_t size, size_t off)
 {
 	abd_verify(sabd);
-	ASSERT3U(off, <=, sabd->abd_size);
+	VERIFY3U(size+off, <=, sabd->abd_size);
 
 	size_t new_offset = ABD_SCATTER(sabd).abd_offset + off;
 	size_t chunkcnt = abd_scatter_chunkcnt(sabd) -
@@ -339,11 +339,13 @@ abd_get_offset_scatter(abd_t *abd, abd_t *sabd, size_t size, size_t off)
 		 * the number of bytes requested, increased
 		 * by the new offset
 		 */
-		abd = abd_alloc_struct(size+new_offset);
+		const size_t new_size = size + new_offset;
+
+		abd = abd_alloc_struct(new_size);
 		VERIFY3P(abd, !=, NULL);
-		VERIFY3U(chunkcnt, >=,
-		    abd_chunkcnt_for_bytes(size+new_offset));
-		chunkcnt = abd_chunkcnt_for_bytes(size+new_offset);
+		VERIFY3U(abd_scatter_chunkcnt(sabd), >=,
+		    abd_chunkcnt_for_bytes(new_size));
+		chunkcnt = abd_chunkcnt_for_bytes(new_size);
 	}
 
 	/*

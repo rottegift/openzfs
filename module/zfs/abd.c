@@ -495,7 +495,7 @@ static abd_t *
 abd_get_offset_impl(abd_t *abd, abd_t *sabd, size_t off, size_t size)
 {
 	abd_verify(sabd);
-	ASSERT3U(off + size, <=, sabd->abd_size);
+	VERIFY3U(off + size, <=, sabd->abd_size);
 
 	if (abd_is_linear(sabd)) {
 		if (abd == NULL)
@@ -529,7 +529,7 @@ abd_get_offset_impl(abd_t *abd, abd_t *sabd, size_t off, size_t size)
 			left -= csize;
 			off = 0;
 		}
-		ASSERT3U(left, ==, 0);
+		VERIFY3U(left, ==, 0);
 	} else {
 #if defined(__APPLE__) && defined(_KERNEL)
 		abd = abd_get_offset_scatter(abd, sabd, off, size);
@@ -578,7 +578,7 @@ abd_get_offset(abd_t *sabd, size_t off)
 abd_t *
 abd_get_offset_size(abd_t *sabd, size_t off, size_t size)
 {
-	ASSERT3U(off + size, <=, sabd->abd_size);
+	VERIFY3U(off + size, <=, sabd->abd_size);
 	return (abd_get_offset_impl(NULL, sabd, off, size));
 }
 
@@ -588,8 +588,8 @@ abd_get_offset_size(abd_t *sabd, size_t off, size_t size)
 abd_t *
 abd_get_zeros(size_t size)
 {
-	ASSERT3P(abd_zero_scatter, !=, NULL);
-	ASSERT3U(size, <=, SPA_MAXBLOCKSIZE);
+	VERIFY3P(abd_zero_scatter, !=, NULL);
+	VERIFY3U(size, <=, SPA_MAXBLOCKSIZE);
 	return (abd_get_offset_size(abd_zero_scatter, 0, size));
 }
 

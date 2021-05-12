@@ -313,7 +313,7 @@ abd_alloc_for_io(size_t size, boolean_t is_metadata)
 }
 
 abd_t *
-abd_get_offset_scatter(abd_t *abd, abd_t *sabd, size_t off)
+abd_get_offset_scatter(abd_t *abd, abd_t *sabd, size_t size, size_t off)
 {
 	abd_verify(sabd);
 	ASSERT3U(off, <=, sabd->abd_size);
@@ -332,8 +332,25 @@ abd_get_offset_scatter(abd_t *abd, abd_t *sabd, size_t off)
 		abd = NULL;
 	}
 
-	if (abd == NULL)
-		abd = abd_alloc_struct(chunkcnt * zfs_abd_chunk_size);
+	if (abd == NULL) {
+		/*
+		 * Feeding 0 to abd_alloc_struct(size) makes
+		 * us look like we are doing a linear, gang,
+		 * or other allocaiton.
+		 */
+		VERIFY3U(size, >, 0);
+
+		/*
+		 * we get an abd struct that can hold
+		 * the number of bytes requested, increased
+		 * by the new offset
+		 */
+		abd = abd_alloc_struct(size+new_offset);
+		VERIFY3P(abd, !=, NULL);
+		VERIFY3U(chunkcnt, >=,
+		    abd_chunkcnt_for_bytes(size+new_offset));
+		chunkcnt = abd_chunkcnt_for_bytes(size+new_offset);
+	}
 
 	/*
 	 * Even if this buf is filesystem metadata, we only track that

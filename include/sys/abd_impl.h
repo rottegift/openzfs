@@ -63,7 +63,11 @@ void abd_free_struct(abd_t *);
  */
 
 abd_t *abd_alloc_struct_impl(size_t);
+#if defined(__APPLE__) && defined(_KERNEL)
+abd_t *abd_get_offset_scatter(abd_t *, abd_t *, size_t, size_t);
+#else
 abd_t *abd_get_offset_scatter(abd_t *, abd_t *, size_t);
+#endif
 void abd_free_struct_impl(abd_t *);
 void abd_alloc_chunks(abd_t *, size_t);
 void abd_free_chunks(abd_t *);

@@ -175,6 +175,36 @@ abd_verify_scatter(abd_t *abd)
 }
 
 void
+abd_verify_scatter_gangchild(abd_t *abd)
+{
+	/*
+	 * There is no scatter linear pages in FreeBSD so there is an
+	 * if an error if the ABD has been marked as a linear page.
+	 */
+	VERIFY(!abd_is_linear_page(abd));
+	VERIFY3U(ABD_SCATTER(abd).abd_offset, <,
+	    zfs_abd_chunk_size);
+	size_t n = abd_scatter_chunkcnt(abd);
+	for (int i = 0; i < n; i++) {
+		VERIFY3P(
+		    ABD_SCATTER(abd).abd_chunks[i], !=, NULL);
+	}
+	/*
+	 * gang children may not have the right size
+	 * if we are not supposed to free them?
+	 */
+	if (abd->abd_orig_size != 0 &&
+	    (abd->abd_flags & ABD_FLAG_GANG_FREE)) {
+		uint_t chunkcnt = abd_scatter_chunkcnt(abd);
+		int64_t calc_abd_free_size =
+		    offsetof(abd_t, abd_u.abd_scatter.abd_chunks[chunkcnt]);
+		if (calc_abd_free_size < sizeof (abd_t))
+			calc_abd_free_size = sizeof (abd_t);
+		VERIFY3U(abd->abd_orig_size, ==, calc_abd_free_size);
+	}
+}
+
+void
 abd_alloc_chunks(abd_t *abd, size_t size)
 {
 	size_t n = abd_chunkcnt_for_bytes(size);

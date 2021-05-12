@@ -105,6 +105,36 @@
 /* see block comment above for description */
 int zfs_abd_scatter_enabled = B_TRUE;
 
+static void
+abd_verify_subgang(abd_t *abd)
+{
+	VERIFY3U(abd->abd_size, >, 0);
+	VERIFY3U(abd->abd_size, <=, SPA_MAXBLOCKSIZE);
+	VERIFY3U(abd->abd_flags, ==, abd->abd_flags & (ABD_FLAG_LINEAR |
+	    ABD_FLAG_OWNER | ABD_FLAG_META | ABD_FLAG_MULTI_ZONE |
+	    ABD_FLAG_MULTI_CHUNK | ABD_FLAG_LINEAR_PAGE | ABD_FLAG_GANG |
+	    ABD_FLAG_GANG_FREE | ABD_FLAG_ZEROS | ABD_FLAG_ALLOCD));
+#ifdef ZFS_DEBUG
+	IMPLY(abd->abd_parent != NULL, !(abd->abd_flags & ABD_FLAG_OWNER));
+#endif
+	IMPLY(abd->abd_flags & ABD_FLAG_META, abd->abd_flags & ABD_FLAG_OWNER);
+	if (abd_is_linear(abd)) {
+		VERIFY3P(ABD_LINEAR_BUF(abd), !=, NULL);
+	} else if (abd_is_gang(abd)) {
+		uint_t child_sizes = 0;
+		for (abd_t *cabd = list_head(&ABD_GANG(abd).abd_gang_chain);
+		    cabd != NULL;
+		    cabd = list_next(&ABD_GANG(abd).abd_gang_chain, cabd)) {
+			VERIFY(list_link_active(&cabd->abd_gang_link));
+			child_sizes += cabd->abd_size;
+			abd_verify_subgang(cabd);
+		}
+		VERIFY3U(abd->abd_size, ==, child_sizes);
+	} else {
+		abd_verify_scatter_gangchild(abd);
+	}
+}
+
 void
 abd_verify(abd_t *abd)
 {
@@ -127,7 +157,7 @@ abd_verify(abd_t *abd)
 		    cabd = list_next(&ABD_GANG(abd).abd_gang_chain, cabd)) {
 			VERIFY(list_link_active(&cabd->abd_gang_link));
 			child_sizes += cabd->abd_size;
-			abd_verify(cabd);
+			abd_verify_subgang(cabd);
 		}
 		VERIFY3U(abd->abd_size, ==, child_sizes);
 	} else {

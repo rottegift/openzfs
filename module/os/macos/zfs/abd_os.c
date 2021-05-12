@@ -200,7 +200,19 @@ abd_verify_scatter_gangchild(abd_t *abd)
 		    offsetof(abd_t, abd_u.abd_scatter.abd_chunks[chunkcnt]);
 		if (calc_abd_free_size < sizeof (abd_t))
 			calc_abd_free_size = sizeof (abd_t);
-		VERIFY3U(abd->abd_orig_size, ==, calc_abd_free_size);
+		if (abd->abd_orig_size != calc_abd_free_size) {
+			panic("ZFS: %s:%d: size mismatch -"
+			    " abd_orig_size = %u !="
+			    " calc_abd_free_size = %lld,"
+			    " chunkcnt = %u, abd_offset = %u,"
+			    " abd_flags = 0x%x)\n",
+			    __func__, __LINE__,
+			    abd->abd_orig_size,
+			    calc_abd_free_size,
+			    chunkcnt,
+			    ABD_SCATTER(abd).abd_offset,
+			    abd->abd_flags);
+		}
 	}
 }
 

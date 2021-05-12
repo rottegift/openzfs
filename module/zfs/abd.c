@@ -618,7 +618,10 @@ abd_get_zeros(size_t size)
 {
 	VERIFY3P(abd_zero_scatter, !=, NULL);
 	VERIFY3U(size, <=, SPA_MAXBLOCKSIZE);
-	return (abd_get_offset_size(abd_zero_scatter, 0, size));
+	abd_t *abd =
+	    abd_get_offset_size(abd_zero_scatter, 0, size);
+	abd->abd_flags |= ABD_FLAG_GOTZEROS;
+	return (abd);
 }
 
 /*

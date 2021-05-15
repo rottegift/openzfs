@@ -159,10 +159,12 @@ abd_verify_scatter(abd_t *abd)
 	VERIFY(!abd_is_linear_page(abd));
 	VERIFY3U(ABD_SCATTER(abd).abd_offset, <,
 	    zfs_abd_chunk_size);
+
 	uint_t chunkcnt = abd_is_linear(abd) || abd_is_gang(abd) ? 0 :
-            abd_scatter_chunkcnt(abd);
-        ssize_t size = MAX(sizeof (abd_t),
-            offsetof(abd_t, abd_u.abd_scatter.abd_chunks[chunkcnt]));
+	    abd_scatter_chunkcnt(abd);
+	ssize_t size = MAX(sizeof (abd_t),
+	    offsetof(abd_t, abd_u.abd_scatter.abd_chunks[chunkcnt]));
+
 	VERIFY3U(abd->abd_size, ==, abd->abd_orig_size);
 
 	size_t n = abd_scatter_chunkcnt(abd);

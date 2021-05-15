@@ -177,7 +177,7 @@ abd_alloc_chunks(abd_t *abd, size_t size)
 {
 	size_t n = abd_chunkcnt_for_bytes(size);
 	for (int i = 0; i < n; i++) {
-		void *c = kmem_cache_alloc(abd_chunk_cache, KM_PUSHPAGE);
+		void *c = kmem_cache_alloc(abd_chunk_cache, KM_SLEEP);
 		ABD_SCATTER(abd).abd_chunks[i] = c;
 	}
 	ABD_SCATTER(abd).abd_chunk_size = zfs_abd_chunk_size;

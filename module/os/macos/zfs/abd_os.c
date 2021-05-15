@@ -157,7 +157,7 @@ abd_verify_scatter(abd_t *abd)
 	 * if an error if the ABD has been marked as a linear page.
 	 */
 	VERIFY(!abd_is_linear_page(abd));
-	ASSERT3U(ABD_SCATTER(abd).abd_offset, <,
+	VERIFY3U(ABD_SCATTER(abd).abd_offset, <,
 	    zfs_abd_chunk_size);
 	size_t n = abd_scatter_chunkcnt(abd);
 	for (int i = 0; i < n; i++) {
@@ -320,7 +320,7 @@ abd_t *
 abd_get_offset_scatter(abd_t *abd, abd_t *sabd, size_t off, size_t size)
 {
 	abd_verify(sabd);
-	ASSERT3U(off, <=, sabd->abd_size);
+	VERIFY3U(off, <=, sabd->abd_size);
 
 	size_t new_offset = ABD_SCATTER(sabd).abd_offset + off;
 

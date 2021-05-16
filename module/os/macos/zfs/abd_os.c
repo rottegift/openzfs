@@ -160,6 +160,14 @@ abd_verify_scatter(abd_t *abd)
 	VERIFY3U(ABD_SCATTER(abd).abd_offset, <,
 	    zfs_abd_chunk_size);
 
+	if (abd->abd_flags & ABD_FLAG_ALLOCD) {
+		uint_t chunkcnt = abd_scatter_chunkcnt(abd);
+		ssize_t size = MAX(sizeof (abd_t),
+		    offsetof(abd_t, abd_u.abd_scatter.abd_chunks[chunkcnt]));
+
+		VERIFY3U(size, ==, abd->abd_orig_size);
+	}
+
 	size_t n = abd_scatter_chunkcnt(abd);
 	for (int i = 0; i < n; i++) {
 		ASSERT3P(
@@ -201,6 +209,7 @@ abd_alloc_struct_impl(size_t size)
 	size_t abd_size = MAX(sizeof (abd_t),
 	    offsetof(abd_t, abd_u.abd_scatter.abd_chunks[chunkcnt]));
 	abd_t *abd = kmem_zalloc(abd_size, KM_PUSHPAGE);
+	abd->abd_orig_size = abd_size;
 	ABDSTAT_INCR(abdstat_struct_size, abd_size);
 
 	return (abd);
@@ -214,6 +223,9 @@ abd_free_struct_impl(abd_t *abd)
 	ssize_t size = MAX(sizeof (abd_t),
 	    offsetof(abd_t, abd_u.abd_scatter.abd_chunks[chunkcnt]));
 
+	if (!abd_is_linear(abd) && !abd_is_gang(abd)) {
+		VERIFY3U(abd->abd_orig_size, ==, size);
+	}
 	kmem_free(abd, size);
 	ABDSTAT_INCR(abdstat_struct_size, -size);
 }

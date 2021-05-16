@@ -160,11 +160,13 @@ abd_verify_scatter(abd_t *abd)
 	VERIFY3U(ABD_SCATTER(abd).abd_offset, <,
 	    zfs_abd_chunk_size);
 
-	uint_t chunkcnt = abd_scatter_chunkcnt(abd);
-	ssize_t size = MAX(sizeof (abd_t),
-	    offsetof(abd_t, abd_u.abd_scatter.abd_chunks[chunkcnt]));
+	if (abd->abd_flags & ABD_FLAG_ALLOCD) {
+		uint_t chunkcnt = abd_scatter_chunkcnt(abd);
+		ssize_t size = MAX(sizeof (abd_t),
+		    offsetof(abd_t, abd_u.abd_scatter.abd_chunks[chunkcnt]));
 
-	VERIFY3U(size, ==, abd->abd_orig_size);
+		VERIFY3U(size, ==, abd->abd_orig_size);
+	}
 
 	size_t n = abd_scatter_chunkcnt(abd);
 	for (int i = 0; i < n; i++) {

@@ -93,7 +93,6 @@ arc_default_max(uint64_t min, uint64_t allmem)
 
 /* Remove these uses of _Atomic */
 static _Atomic boolean_t arc_reclaim_in_loop = B_FALSE;
-static _Atomic int64_t reclaim_shrink_target = 0;
 
 /*
  * Return maximum amount of memory that we could possibly use.  Reduced
@@ -149,19 +148,6 @@ arc_memory_throttle(spa_t *spa, uint64_t reserve, uint64_t txg)
 	return (0);
 }
 
-int64_t
-arc_shrink(int64_t to_free)
-{
-	int64_t shrank = 0;
-	const int64_t arc_c_before = arc_c;
-
-	arc_reduce_target_size(to_free);
-
-	shrank = arc_c_before - arc_c;
-
-	return (shrank);
-}
-
 /*
  * arc.c has a arc_reap_zthr we should probably use, instead of
  * having our own legacy arc_reclaim_thread().
@@ -205,16 +191,6 @@ arc_reclaim_thread(void *unused)
 		uint64_t evicted = 0;
 
 		mutex_exit(&arc_reclaim_lock);
-
-		if (reclaim_shrink_target > 0) {
-			int64_t t = reclaim_shrink_target;
-			reclaim_shrink_target = 0;
-			evicted = arc_shrink(t);
-			extern kmem_cache_t *abd_chunk_cache;
-			kmem_cache_reap_now(abd_chunk_cache);
-			IOSleep(1);
-			goto lock_and_sleep;
-		}
 
 		int64_t pre_adjust_free_memory = MIN(spl_free_wrapper(),
 		    arc_available_memory());
@@ -267,35 +243,40 @@ arc_reclaim_thread(void *unused)
 		}
 
 		const hrtime_t curtime = gethrtime();
+
 		if (free_memory < 0 || manual_pressure > 0) {
 
 			if (manual_pressure > 0 || free_memory <=
 			    (arc_c >> arc_no_grow_shift) + SPA_MAXBLOCKSIZE) {
 				arc_no_grow = B_TRUE;
 
-		/*
-		 * Absorb occasional low memory conditions, as they
-		 * may be caused by a single sequentially writing thread
-		 * pushing a lot of dirty data into the ARC.
-		 *
-		 * In particular, we want to quickly
-		 * begin re-growing the ARC if we are
-		 * not in chronic high pressure.
-		 * However, if we're in chronic high
-		 * pressure, we want to reduce reclaim
-		 * thread work by keeping arc_no_grow set.
-		 *
-		 * If growtime is in the past, then set it to last
-		 * half a second (which is the length of the
-		 * cv_timedwait_hires() call below; if this works,
-		 * that value should be a parameter, #defined or constified.
-		 *
-		 * If growtime is in the future, then make sure that it
-		 * is no further than 60 seconds into the future.
-		 * If it's in the nearer future, then grow growtime by
-		 * an exponentially increasing value starting with 500msec.
-		 *
-		 */
+				/*
+				 * Absorb occasional low memory conditions, as
+				 * they may be caused by a single sequentially
+				 * writing thread pushing a lot of dirty data
+				 * into the ARC.
+				 *
+				 * In particular, we want to quickly begin
+				 * re-growing the ARC if we are not in chronic
+				 * high pressure.  However, if we're in
+				 * chronic high pressure, we want to reduce
+				 * reclaim thread work by keeping arc_no_grow
+				 * set.
+				 *
+				 * If growtime is in the past, then set it to
+				 * last half a second (which is the length of
+				 * the cv_timedwait_hires() call below).
+				 *
+				 * If growtime is in the future, then make
+				 * sure that it is no further than 60 seconds
+				 * into the future.
+				 *
+				 * If growtime is less than 60 seconds in the
+				 * future, then grow growtime by an
+				 * exponentially increasing value starting
+				 * with 500msec.
+				 *
+				 */
 				const hrtime_t agr = SEC2NSEC(arc_grow_retry);
 				static int grow_pass = 0;
 
@@ -318,6 +299,11 @@ arc_reclaim_thread(void *unused)
 						growtime = curtime + agr - 1LL;
 						grow_pass = 0;
 					} else {
+						/*
+						 * with each pass, push
+						 * turning off arc_no_grow
+						 * by longer
+						 */
 						hrtime_t grow_by =
 						    MSEC2NSEC(500) *
 						    (1LL << grow_pass);
@@ -344,59 +330,17 @@ arc_reclaim_thread(void *unused)
 			 */
 			free_memory = arc_available_memory();
 
-			static int64_t old_to_free = 0;
-
 			int64_t to_free =
 			    (arc_c >> arc_shrink_shift) - free_memory;
 
 			if (to_free > 0 || manual_pressure != 0) {
 				// 2 * SPA_MAXBLOCKSIZE
-				const int64_t large_amount =
-				    32LL * 1024LL * 1024LL;
 
 				to_free = MAX(to_free, manual_pressure);
 
-				int64_t old_arc_size =
-				    (int64_t)aggsum_value(&arc_size);
-				(void) arc_shrink(to_free);
-				int64_t new_arc_size =
-				    (int64_t)aggsum_value(&arc_size);
-				int64_t arc_shrink_freed =
-				    old_arc_size - new_arc_size;
-				int64_t left_to_free =
-				    to_free - arc_shrink_freed;
-				if (left_to_free <= 0) {
-					if (arc_shrink_freed > large_amount) {
-						printf("ZFS: %s, arc_shrink "
-						    "freed %lld, zeroing "
-						    "old_to_free from %lld\n",
-						    __func__, arc_shrink_freed,
-						    old_to_free);
-					}
-					old_to_free = 0;
-				} else if (arc_shrink_freed > 2LL *
-				    (int64_t)SPA_MAXBLOCKSIZE) {
-					printf("ZFS: %s, arc_shrink freed "
-					    "%lld, setting old_to_free to "
-					    "%lld from %lld\n",
-					    __func__, arc_shrink_freed,
-					    left_to_free, old_to_free);
-					old_to_free = left_to_free;
-				} else {
-					old_to_free = left_to_free;
-				}
+				arc_reduce_target_size(to_free);
 
-				// If we have reduced ARC by a lot before
-				// this point, try to give memory back to
-				// lower arenas (and possibly xnu).
-
-				if (arc_shrink_freed > 0)
-					evicted += arc_shrink_freed;
-			} else if (old_to_free > 0) {
-				printf("ZFS: %s, (old_)to_free has "
-				    "returned to zero from %lld\n",
-				    __func__, old_to_free);
-				old_to_free = 0;
+				goto lock_and_sleep;
 			}
 		} else if (free_memory < (arc_c >> arc_no_grow_shift) &&
 		    aggsum_value(&arc_size) >
@@ -404,6 +348,7 @@ arc_reclaim_thread(void *unused)
 			// relatively low memory and arc is above arc_c_min
 			arc_no_grow = B_TRUE;
 			growtime = curtime + SEC2NSEC(1);
+			goto lock_and_sleep;
 		}
 
 		/*
@@ -463,8 +408,10 @@ arc_reclaim_thread(void *unused)
 
 					const int64_t sb =
 					    arc_c >> arc_shrink_shift;
-					if (arc_c_min + sb > arc_c)
+					if (arc_c_min + sb > arc_c) {
 						arc_reduce_target_size(sb);
+						goto lock_and_sleep;
+					}
 				}
 			} else if (gap > 0 && gap > previous_gap) {
 				/*

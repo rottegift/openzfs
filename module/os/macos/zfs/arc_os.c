@@ -188,7 +188,6 @@ arc_reclaim_thread(void *unused)
 	mutex_enter(&arc_reclaim_lock);
 	while (!arc_reclaim_thread_exit) {
 		arc_reclaim_in_loop = B_TRUE;
-		uint64_t evicted = 0;
 
 		mutex_exit(&arc_reclaim_lock);
 
@@ -224,23 +223,24 @@ arc_reclaim_thread(void *unused)
 
 		if (manual_pressure > 0 && post_adjust_manual_pressure == 0) {
 			// pressure did not get re-signalled during arc_adjust()
-			if (d_adj >= 0) {
-				manual_pressure -= MIN(evicted, d_adj);
-			} else {
-				manual_pressure -= evicted;
-			}
-		} else if (evicted > 0 && manual_pressure > 0 &&
+			if (d_adj > 0)
+				manual_pressure -= d_adj;
+		} else if (manual_pressure > 0 &&
 		    post_adjust_manual_pressure > 0) {
 			// otherwise use the most recent pressure value
 			manual_pressure = post_adjust_manual_pressure;
 		}
 
-		free_memory = post_adjust_free_memory;
-
-		if (free_memory >= 0 && manual_pressure <= 0 && evicted > 0) {
+		/*
+		 * If we have successfully freed a bunch of memory,
+		 * it is worth reaping the abd_chunk_cache
+		 */
+		if (d_adj >= 64LL*1024LL*1024LL) {
 			extern kmem_cache_t *abd_chunk_cache;
 			kmem_cache_reap_now(abd_chunk_cache);
 		}
+
+		free_memory = post_adjust_free_memory;
 
 		const hrtime_t curtime = gethrtime();
 
@@ -460,18 +460,17 @@ arc_reclaim_thread(void *unused)
 
 lock_and_sleep:
 
+		arc_reclaim_in_loop = B_FALSE;
+
 		mutex_enter(&arc_reclaim_lock);
 
 		/*
-		 * If evicted is zero, we couldn't evict anything via
-		 * arc_adjust(). This could be due to hash lock
-		 * collisions, but more likely due to the majority of
-		 * arc buffers being unevictable. Therefore, even if
-		 * arc_size is above arc_c, another pass is unlikely to
-		 * be helpful and could potentially cause us to enter an
-		 * infinite loop.
+		 * If d_adj is non-positive, we didn't evict anything,
+		 * perhaps because nothing was evictable.  Immediately
+		 * running another pass is unlikely to be helpful.
 		 */
-		if (aggsum_compare(&arc_size, arc_c) <= 0 || evicted == 0) {
+
+		if (aggsum_compare(&arc_size, arc_c) <= 0 || d_adj <= 0) {
 			/*
 			 * We're either no longer overflowing, or we
 			 * can't evict anything more, so we should wake
@@ -479,7 +478,6 @@ lock_and_sleep:
 			 */
 			cv_broadcast(&arc_reclaim_waiters_cv);
 
-			arc_reclaim_in_loop = B_FALSE;
 			/*
 			 * Block until signaled, or after one second (we
 			 * might need to perform arc_kmem_reap_now()
@@ -490,7 +488,7 @@ lock_and_sleep:
 			    &arc_reclaim_lock, MSEC2NSEC(500), MSEC2NSEC(1), 0);
 			CALLB_CPR_SAFE_END(&cpr, &arc_reclaim_lock);
 
-		} else if (evicted >= SPA_MAXBLOCKSIZE * 3) {
+		} else if (d_adj >= SPA_MAXBLOCKSIZE * 3) {
 			// we evicted plenty of buffers, so let's wake up
 			// all the waiters rather than having them stall
 			cv_broadcast(&arc_reclaim_waiters_cv);

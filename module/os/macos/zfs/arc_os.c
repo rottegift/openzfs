@@ -91,7 +91,6 @@ arc_default_max(uint64_t min, uint64_t allmem)
 
 #ifdef _KERNEL
 
-/* Remove these uses of _Atomic */
 static _Atomic boolean_t arc_reclaim_in_loop = B_FALSE;
 
 /*
@@ -191,7 +190,7 @@ arc_reclaim_thread(void *unused)
 
 		mutex_exit(&arc_reclaim_lock);
 
-		int64_t pre_adjust_free_memory = MIN(spl_free_wrapper(),
+		const int64_t pre_adjust_free_memory = MIN(spl_free_wrapper(),
 		    arc_available_memory());
 
 		int64_t manual_pressure = spl_free_manual_pressure_wrapper();
@@ -202,23 +201,40 @@ arc_reclaim_thread(void *unused)
 		 * arc_kmem_reap_now(), so that we can wake up
 		 * arc_get_data_impl() sooner.
 		 */
+
+		if (manual_pressure > 0) {
+			arc_reduce_target_size(MIN(manual_pressure,
+			    (arc_c >> arc_shrink_shift)));
+		}
+
 		arc_wait_for_eviction(0);
 
 		int64_t free_memory = arc_available_memory();
 
-		int64_t post_adjust_manual_pressure =
+		const int64_t post_adjust_manual_pressure =
 		    spl_free_manual_pressure_wrapper();
+
+		/* maybe we are getting lots of pressure from spl */
 		manual_pressure = MAX(manual_pressure,
 		    post_adjust_manual_pressure);
+
 		spl_free_set_pressure(0);
 
-		int64_t post_adjust_free_memory =
+		const int64_t post_adjust_free_memory =
 		    MIN(spl_free_wrapper(), arc_available_memory());
 
 		// if arc_adjust() evicted, we expect post_adjust_free_memory
 		// to be larger than pre_adjust_free_memory (as there should
 		// be more free memory).
-		int64_t d_adj = post_adjust_free_memory -
+
+		/*
+		 * d_adj tracks the change of memory across the call
+		 * to arc_wait_for_eviction(), and will count the number
+		 * of bytes the spl_free_thread calculates has been
+		 * made free (signed)
+		 */
+
+		const int64_t d_adj = post_adjust_free_memory -
 		    pre_adjust_free_memory;
 
 		if (manual_pressure > 0 && post_adjust_manual_pressure == 0) {
@@ -248,6 +264,7 @@ arc_reclaim_thread(void *unused)
 
 			if (manual_pressure > 0 || free_memory <=
 			    (arc_c >> arc_no_grow_shift) + SPA_MAXBLOCKSIZE) {
+
 				arc_no_grow = B_TRUE;
 
 				/*
@@ -334,7 +351,6 @@ arc_reclaim_thread(void *unused)
 			    (arc_c >> arc_shrink_shift) - free_memory;
 
 			if (to_free > 0 || manual_pressure != 0) {
-				// 2 * SPA_MAXBLOCKSIZE
 
 				to_free = MAX(to_free, manual_pressure);
 
@@ -748,7 +764,6 @@ arc_free_memory(void)
 	avail = spl_free_wrapper();
 	return (avail >= 0LL ? avail : 0LL);
 }
-
 #endif /* KERNEL */
 
 void

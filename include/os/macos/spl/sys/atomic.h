@@ -45,7 +45,7 @@ extern "C" {
  */
 
 #define	ATOMIC_INC(name, type)						\
-	static inline							\
+	static inline __attribute__((always_inline))							\
 	void atomic_inc_##name(volatile type *target)			\
 	{								\
 		(void) __atomic_add_fetch(target, 1, __ATOMIC_SEQ_CST); \
@@ -62,7 +62,7 @@ ATOMIC_INC(ulong, ulong_t)
 ATOMIC_INC(64, uint64_t)
 
 #define	ATOMIC_INC_NV(name, type)			    \
-	static inline					    \
+	static inline __attribute__((always_inline))					    \
 	type atomic_inc_##name##_nv(volatile type * target) \
 	{						    \
 	return (__atomic_add_fetch(target, 1, 		    \
@@ -83,7 +83,7 @@ ATOMIC_INC_NV(64, uint64_t)
  */
 
 #define	ATOMIC_DEC(name, type)						\
-	static inline							\
+	static inline __attribute__((always_inline))							\
         void atomic_dec_##name(volatile type *target)			\
         {								\
 		(void) __atomic_sub_fetch(target, 1,			\
@@ -100,7 +100,7 @@ ATOMIC_DEC(ulong, ulong_t)
 ATOMIC_DEC(64, uint64_t)
 
 #define	ATOMIC_DEC_NV(name, type)				\
-	static inline						\
+	static inline __attribute__((always_inline))						\
 	type atomic_dec_##name##_nv(volatile type *target)	\
 	{							\
 		return (__atomic_sub_fetch(target, 1,		\
@@ -121,7 +121,7 @@ ATOMIC_DEC_NV(64, uint64_t)
  */
 
 #define	ATOMIC_ADD(name, type1, type2)					\
-	static inline							\
+	static inline __attribute__((always_inline))							\
         void atomic_add_##name(volatile type1 *target, type2 bits)      \
         {                                                               \
 		(void) __atomic_add_fetch((volatile type2 *) target,	\
@@ -138,7 +138,7 @@ ATOMIC_ADD(long, ulong_t, long)
 ATOMIC_ADD(64, uint64_t, int64_t)
 
 #define	ATOMIC_ADD_NV(name, type1, type2)			\
-	static inline						\
+	static inline __attribute__((always_inline))						\
 	type1 atomic_add_##name##_nv(volatile type1 *target,	\
 	    type2 x)						\
 	{							\
@@ -161,7 +161,7 @@ ATOMIC_ADD_NV(64, uint64_t, int64_t)
  */
 
 #define	ATOMIC_SUB(name, type1, type2)					\
-	static inline							\
+	static inline __attribute__((always_inline))							\
         void atomic_sub_##name(volatile type1 *target, type2 bits)      \
         {                                                               \
 		(void) __atomic_sub_fetch((volatile type2 *)target,	\
@@ -178,7 +178,7 @@ ATOMIC_SUB(long, ulong_t, long)
 ATOMIC_SUB(64, uint64_t, int64_t)
 
 #define	ATOMIC_SUB_NV(name, type1, type2)				\
-	static inline							\
+	static inline __attribute__((always_inline))							\
 	type1 atomic_sub_##name##_nv(volatile type1 *target,		\
 	    type2 bits)							\
         {                                                               \
@@ -201,7 +201,7 @@ ATOMIC_SUB_NV(64, uint64_t, int64_t)
  */
 
 #define ATOMIC_OR(name, type)						\
-	static inline							\
+	static inline __attribute__((always_inline))							\
         void atomic_or_##name(volatile type *target, type bits)         \
         {                                                               \
                 (void) __atomic_or_fetch(target, bits, __ATOMIC_SEQ_CST); \
@@ -217,7 +217,7 @@ ATOMIC_OR(ulong, ulong_t)
 ATOMIC_OR(64, uint64_t)
 
 #define ATOMIC_OR_NV(name, type) \
-	static inline							\
+	static inline __attribute__((always_inline))							\
         type atomic_or_##name##_nv(volatile type *target, type bits)    \
         {                                                               \
                 return (__atomic_or_fetch(target, bits, __ATOMIC_SEQ_CST)); \
@@ -237,7 +237,7 @@ ATOMIC_OR_NV(64, uint64_t)
  */
 
 #define ATOMIC_AND(name, type)						\
-	static inline							\
+	static inline __attribute__((always_inline))							\
         void atomic_and_##name(volatile type *target, type bits)        \
         {                                                               \
                 (void) __atomic_and_fetch(target, bits, __ATOMIC_SEQ_CST); \
@@ -258,7 +258,7 @@ ATOMIC_AND(64, uint64_t)
  */
 
 #define ATOMIC_CAS(name, type) \
-	static inline							\
+	static inline __attribute__((always_inline))							\
         type atomic_cas_##name(volatile type *target, type exp, type des) \
         {                                                               \
 		__atomic_compare_exchange_n(target,			\
@@ -277,7 +277,7 @@ ATOMIC_CAS(ulong, ulong_t)
 ATOMIC_CAS(64, uint64_t)
 
 #define ATOMIC_SWAP(name, type)						\
-	static inline							\
+	static inline __attribute__((always_inline))							\
         type atomic_swap_##name(volatile type *target, type bits)       \
         {                                                               \
                 return (__atomic_exchange_n(target, bits, __ATOMIC_SEQ_CST)); \
@@ -292,16 +292,7 @@ ATOMIC_SWAP(uint, uint_t)
 ATOMIC_SWAP(ulong, ulong_t)
 ATOMIC_SWAP(64, uint64_t)
 
-static inline void *
-atomic_cas_ptr(void *target, void *exp, void *des)
-{
-        __atomic_compare_exchange_n((void **)target,
-	    &exp, des, B_FALSE,
-            __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
-        return (exp);
-}
-
-static inline void
+static inline __attribute__((always_inline)) void
 membar_producer(void)
 {
 	__c11_atomic_thread_fence(__ATOMIC_SEQ_CST);

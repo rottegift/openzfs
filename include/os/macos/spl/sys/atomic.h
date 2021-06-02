@@ -31,9 +31,12 @@
 #define	_SPL_ATOMIC_H
 #pragma GCC diagnostic push
 #pragma GCC diagnostic warning "-Wsign-conversion"
+#pragma GCC diagnostic warning "-Wshorten-64-to-32"
+#pragma GCC diagnostic warning "-Wimplicit-int-conversion"
+#pragma GCC diagnostic warning "-Weverything"
+#pragma GCC diagnostic ignored "-Wold-style-cast"
 #include <sys/types.h>
 #include <string.h>
-#include <libkern/OSAtomic.h>
 
 #ifdef	__cplusplus
 extern "C" {
@@ -73,10 +76,11 @@ ATOMIC_INC_NV(64, uint64_t)
 
 #define	ATOMIC_DEC(name, type)						\
 	static inline							\
-        void atomic_dec_##name(volatile type *target)                   \
-        {                                                               \
-                (void) __atomic_sub_fetch(target, 1, __ATOMIC_SEQ_CST); \
-        }
+        void atomic_dec_##name(volatile type *target)			\
+        {								\
+		(void) __atomic_sub_fetch(target, 1,			\
+		    __ATOMIC_SEQ_CST);					\
+	}
 
 ATOMIC_DEC(8, uint8_t)
 ATOMIC_DEC(16, uint16_t)
@@ -87,7 +91,7 @@ ATOMIC_DEC(64, uint64_t)
 	static inline						\
 	type atomic_dec_##name##_nv(volatile type *target)	\
 	{							\
-		return (__atomic_sub_fetch(target, (type) 1,	\
+		return (__atomic_sub_fetch(target, 1,		\
 			__ATOMIC_SEQ_CST));			\
 	}
 
@@ -135,7 +139,7 @@ ATOMIC_ADD_NV(64, uint64_t, int64_t)
 	static inline							\
         void atomic_sub_##name(volatile type1 *target, type2 bits)      \
         {                                                               \
-		(void) __atomic_sub_fetch((volatile type2 *) target,	\
+		(void) __atomic_sub_fetch((volatile type2 *)target,	\
 		    bits, __ATOMIC_SEQ_CST);				\
         }
 
@@ -192,7 +196,8 @@ ATOMIC_AND(64, uint64_t)
 	static inline							\
         type atomic_cas_##name(volatile type *target, type exp, type des) \
         {                                                               \
-                __atomic_compare_exchange_n(target, &exp, des, B_FALSE, \
+		__atomic_compare_exchange_n(target,			\
+		    &exp, des, B_FALSE,					\
                     __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);                \
                 return (exp);                                           \
         }
@@ -215,10 +220,10 @@ ATOMIC_SWAP(32, uint32_t)
 ATOMIC_SWAP(64, uint64_t)
 
 static inline void *
-atomic_cas_ptr(volatile void *target, void *exp, void *des)
+atomic_cas_ptr(void *target, void *exp, void *des)
 {
-
-        __atomic_compare_exchange_n((void **)target, &exp, des, B_FALSE,
+        __atomic_compare_exchange_n((void **)target,
+	    &exp, des, B_FALSE,
             __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
         return (exp);
 }

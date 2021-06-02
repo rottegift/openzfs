@@ -42,164 +42,107 @@ extern "C" {
 /*
  * Increment target
  */
-static inline void
-atomic_inc_8(volatile uint8_t *target)
-{
-	(void) __atomic_add_fetch(target, 1, __ATOMIC_SEQ_CST);
-}
 
-static inline void
-atomic_inc_16(volatile uint16_t *target)
-{
-	(void) __atomic_add_fetch(target, 1, __ATOMIC_SEQ_CST);
-}
+#define	ATOMIC_INC(name, type)						\
+	static inline							\
+	void atomic_inc_##name(volatile type *target)			\
+	{								\
+		(void) __atomic_add_fetch(target, 1, __ATOMIC_SEQ_CST); \
+	}
 
-static inline void
-atomic_inc_32(volatile uint32_t *target)
-{
-	(void) __atomic_add_fetch(target, 1, __ATOMIC_SEQ_CST);
-}
 
-static inline void
-atomic_inc_64(volatile uint64_t *target)
-{
-	(void) __atomic_add_fetch(target, 1, __ATOMIC_SEQ_CST);
-}
+ATOMIC_INC(8, uint8_t)
+ATOMIC_INC(16, uint16_t)
+ATOMIC_INC(32, uint32_t)
+ATOMIC_INC(64, uint64_t)
 
-static inline int32_t
-atomic_inc_32_nv(volatile uint32_t *target)
-{
-	return (__atomic_add_fetch((volatile int32_t *)
-		target, 1, __ATOMIC_SEQ_CST));
-}
+#define	ATOMIC_INC_NV(name, type)			    \
+	static inline					    \
+	type atomic_inc_##name##_nv(volatile type * target) \
+	{						    \
+	return (__atomic_add_fetch(target, 1, 		    \
+		__ATOMIC_SEQ_CST));			    \
+	    }
 
-static inline int64_t
-atomic_inc_64_nv(volatile uint64_t *target)
-{
-	return (__atomic_add_fetch((volatile int64_t *)
-		target, 1, __ATOMIC_SEQ_CST));
-}
+ATOMIC_INC_NV(32, uint32_t)
+ATOMIC_INC_NV(64, uint64_t)
 
 /*
  * Decrement target
  */
-static inline void
-atomic_dec_8(volatile uint8_t *target)
-{
-	(void) __atomic_sub_fetch((volatile int8_t *)
-	    target, 1, __ATOMIC_SEQ_CST);
-}
 
-static inline void
-atomic_dec_16(volatile uint16_t *target)
-{
-	(void) __atomic_sub_fetch((volatile int16_t *)
-	    target, 1, __ATOMIC_SEQ_CST);
-}
+#define	ATOMIC_DEC(name, type)						\
+	static inline							\
+        void atomic_dec_##name(volatile type *target)                   \
+        {                                                               \
+                (void) __atomic_sub_fetch(target, 1, __ATOMIC_SEQ_CST); \
+        }
 
-static inline void
-atomic_dec_32(volatile uint32_t *target)
-{
-	(void) __atomic_sub_fetch((volatile int32_t *)
-	    target, 1, __ATOMIC_SEQ_CST);
-}
+ATOMIC_DEC(8, uint8_t)
+ATOMIC_DEC(16, uint16_t)
+ATOMIC_DEC(32, uint32_t)
+ATOMIC_DEC(64, uint64_t)
 
-static inline void
-atomic_dec_64(volatile uint64_t *target)
-{
-	(void) __atomic_sub_fetch((volatile int64_t *)
-	    target, 1, __ATOMIC_SEQ_CST);
-}
+#define	ATOMIC_DEC_NV(name, type)				\
+	static inline						\
+	type atomic_dec_##name##_nv(volatile type *target)	\
+	{							\
+		return (__atomic_sub_fetch(target, (type) 1,	\
+			__ATOMIC_SEQ_CST));			\
+	}
 
-static inline int32_t
-atomic_dec_32_nv(volatile uint32_t *target)
-{
-	return (__atomic_sub_fetch((volatile int32_t *)
-		target, 1, __ATOMIC_SEQ_CST));
-}
-
-static inline int64_t
-atomic_dec_64_nv(volatile uint64_t *target)
-{
-	return (__atomic_sub_fetch((volatile int64_t *)
-		target, 1, __ATOMIC_SEQ_CST));
-}
+ATOMIC_DEC_NV(32, uint32_t)
+ATOMIC_DEC_NV(64, uint64_t)
 
 /*
  * Add delta to target
  */
-static inline void
-atomic_add_8(volatile uint8_t *target, int8_t delta)
-{
-	(void) __atomic_add_fetch((volatile int8_t *)
-	    target, delta, __ATOMIC_SEQ_CST);
-}
 
-static inline void
-atomic_add_16(volatile uint16_t *target, int16_t delta)
-{
-	(void) __atomic_add_fetch((volatile int16_t *)
-	    target, delta, __ATOMIC_SEQ_CST);
-}
+#define	ATOMIC_ADD(name, type1, type2)					\
+	static inline							\
+        void atomic_add_##name(volatile type1 *target, type2 bits)      \
+        {                                                               \
+		(void) __atomic_add_fetch((volatile type2 *) target,	\
+		    bits, __ATOMIC_SEQ_CST);				\
+        }
 
-static inline void
-atomic_add_32(volatile uint32_t *target, int32_t delta)
-{
-	(void) __atomic_add_fetch((volatile int32_t *)
-	    target, delta, __ATOMIC_SEQ_CST);
-}
+ATOMIC_ADD(8, uint8_t, int8_t)
+ATOMIC_ADD(16, uint16_t, int16_t)
+ATOMIC_ADD(32, uint32_t, int32_t)
+ATOMIC_ADD(64, uint64_t, int64_t)
 
-static inline uint32_t
-atomic_add_32_nv(volatile uint32_t *target, int32_t delta)
-{
-	return ((uint32_t)__atomic_add_fetch((volatile int32_t *)
-		target, delta, __ATOMIC_SEQ_CST));
-}
+#define	ATOMIC_ADD_NV(name, type1, type2)			\
+	static inline						\
+	type1 atomic_add_##name##_nv(volatile type1 *target,	\
+	    type2 x)						\
+	{							\
+		return ((type1)__atomic_add_fetch(		\
+			(volatile type2 *)target, x,		\
+			__ATOMIC_SEQ_CST));			\
+	}
 
-static inline void
-atomic_add_64(volatile uint64_t *target, int64_t delta)
-{
-	(void) __atomic_add_fetch((volatile int64_t *)
-	    target, delta, __ATOMIC_SEQ_CST);
-}
-
-static inline uint64_t
-atomic_add_64_nv(volatile uint64_t *target, int64_t delta)
-{
-	return ((uint64_t)__atomic_add_fetch((volatile int64_t *)
-		target, delta, __ATOMIC_SEQ_CST));
-}
+ATOMIC_ADD_NV(8, uint8_t, int8_t)
+ATOMIC_ADD_NV(16, uint16_t, int16_t)
+ATOMIC_ADD_NV(32, uint32_t, int32_t)
+ATOMIC_ADD_NV(64, uint64_t, int64_t)
 
 /*
  * Subtract delta to target
  */
-static inline void
-atomic_sub_8(volatile uint8_t *target, int8_t delta)
-{
-	(void) __atomic_sub_fetch((volatile int8_t *)
-	    target, delta, __ATOMIC_SEQ_CST);
-}
 
-static inline void
-atomic_sub_16(volatile uint16_t *target, int16_t delta)
-{
-	(void) __atomic_sub_fetch((volatile int16_t *)
-	    target, delta, __ATOMIC_SEQ_CST);
-}
 
-static inline void
-atomic_sub_32(volatile uint32_t *target, int32_t delta)
-{
-	(void) __atomic_sub_fetch((volatile int32_t *)
-	    target, delta, __ATOMIC_SEQ_CST);
-}
+#define	ATOMIC_SUB(name, type1, type2)					\
+	static inline							\
+        void atomic_sub_##name(volatile type1 *target, type2 bits)      \
+        {                                                               \
+		(void) __atomic_sub_fetch((volatile type2 *) target,	\
+		    bits, __ATOMIC_SEQ_CST);				\
+        }
 
-static inline void
-atomic_sub_64(volatile uint64_t *target, int64_t delta)
-{
-	(void) __atomic_sub_fetch((volatile int64_t *)
-	    target, delta, __ATOMIC_SEQ_CST);
-}
+ATOMIC_SUB(8, uint8_t, int8_t)
+ATOMIC_SUB(16, uint16_t, int16_t)
+ATOMIC_SUB(32, uint32_t, int32_t)
+ATOMIC_SUB(64, uint64_t, int64_t)
 
 static inline uint64_t
 atomic_sub_64_nv(volatile uint64_t *target, int64_t delta)
@@ -211,86 +154,74 @@ atomic_sub_64_nv(volatile uint64_t *target, int64_t delta)
 /*
  * logical OR bits with target
  */
-static inline void
-atomic_or_8(volatile uint8_t *target, uint8_t mask)
-{
-	(void) __atomic_fetch_or(target, mask, __ATOMIC_SEQ_CST);
-}
 
-static inline void
-atomic_or_16(volatile uint16_t *target, uint16_t mask)
-{
-	(void) __atomic_fetch_or(target, mask, __ATOMIC_SEQ_CST);
-}
+#define ATOMIC_OR(name, type)						\
+	static inline							\
+        void atomic_or_##name(volatile type *target, type bits)         \
+        {                                                               \
+                (void) __atomic_or_fetch(target, bits, __ATOMIC_SEQ_CST); \
+        }
 
-static inline void
-atomic_or_32(volatile uint32_t *target, uint32_t mask)
-{
-	(void) __atomic_fetch_or(target, mask, __ATOMIC_SEQ_CST);
-}
+ATOMIC_OR(8, uint8_t)
+ATOMIC_OR(16, uint16_t)
+ATOMIC_OR(32, uint32_t)
+ATOMIC_OR(64, uint64_t)
 
 /*
  * logical AND bits with target
  */
-static inline void
-atomic_and_8(volatile uint8_t *target, uint8_t mask)
-{
-	(void) __atomic_fetch_and(target, mask, __ATOMIC_SEQ_CST);
-}
 
-static inline void
-atomic_and_16(volatile uint16_t *target, uint16_t mask)
-{
-	(void) __atomic_fetch_and(target, mask, __ATOMIC_SEQ_CST);
-}
+#define ATOMIC_AND(name, type)						\
+	static inline							\
+        void atomic_and_##name(volatile type *target, type bits)        \
+        {                                                               \
+                (void) __atomic_and_fetch(target, bits, __ATOMIC_SEQ_CST); \
+        }
 
-static inline void
-atomic_and_32(volatile uint32_t *target, uint32_t mask)
-{
-	(void) __atomic_fetch_and(target, mask, __ATOMIC_SEQ_CST);
-}
+ATOMIC_AND(8, uint8_t)
+ATOMIC_AND(16, uint16_t)
+ATOMIC_AND(32, uint32_t)
+ATOMIC_AND(64, uint64_t)
 
 /*
  * Compare And Set
  * if *arg1 == arg2, then set *arg1 = arg3; return old value.
  */
-static inline uint8_t
-atomic_cas_8(volatile uint8_t *_target, uint8_t _cmp, uint8_t _new)
-{
-	return (__sync_val_compare_and_swap(_target, _cmp, _new));
-}
 
-static inline uint16_t
-atomic_cas_16(volatile uint16_t *_target, uint16_t _cmp, uint16_t _new)
-{
-	return (__sync_val_compare_and_swap(_target, _cmp, _new));
-}
+#define ATOMIC_CAS(name, type) \
+	static inline							\
+        type atomic_cas_##name(volatile type *target, type exp, type des) \
+        {                                                               \
+                __atomic_compare_exchange_n(target, &exp, des, B_FALSE, \
+                    __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);                \
+                return (exp);                                           \
+        }
 
-static inline uint32_t
-atomic_cas_32(volatile uint32_t *_target, uint32_t _cmp, uint32_t _new)
-{
-	return (__sync_val_compare_and_swap(_target, _cmp, _new));
-}
+ATOMIC_CAS(8, uint8_t)
+ATOMIC_CAS(16, uint16_t)
+ATOMIC_CAS(32, uint32_t)
+ATOMIC_CAS(64, uint64_t)
 
-static inline uint64_t
-atomic_cas_64(volatile uint64_t *_target, uint64_t _cmp, uint64_t _new)
-{
-	return (__sync_val_compare_and_swap(_target, _cmp, _new));
-}
+#define ATOMIC_SWAP(name, type)						\
+	static inline							\
+        type atomic_swap_##name(volatile type *target, type bits)       \
+        {                                                               \
+                return (__atomic_exchange_n(target, bits, __ATOMIC_SEQ_CST)); \
+        }
 
-static inline uint32_t
-atomic_swap_32(volatile uint32_t *_target, uint32_t _new)
-{
-	return (__sync_lock_test_and_set(_target, _new));
-}
+ATOMIC_SWAP(8, uint8_t)
+ATOMIC_SWAP(16, uint16_t)
+ATOMIC_SWAP(32, uint32_t)
+ATOMIC_SWAP(64, uint64_t)
 
-static inline uint64_t
-atomic_swap_64(volatile uint64_t *_target, uint64_t _new)
+static inline void *
+atomic_cas_ptr(volatile void *target, void *exp, void *des)
 {
-	return (__sync_lock_test_and_set(_target, _new));
-}
 
-extern void *atomic_cas_ptr(volatile void *_target, void *_cmp, void *_new);
+        __atomic_compare_exchange_n((void **)target, &exp, des, B_FALSE,
+            __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
+        return (exp);
+}
 
 static inline void
 membar_producer(void)

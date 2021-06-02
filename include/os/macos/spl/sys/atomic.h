@@ -33,8 +33,6 @@
 #pragma GCC diagnostic warning "-Wsign-conversion"
 #pragma GCC diagnostic warning "-Wshorten-64-to-32"
 #pragma GCC diagnostic warning "-Wimplicit-int-conversion"
-#pragma GCC diagnostic warning "-Weverything"
-#pragma GCC diagnostic ignored "-Wold-style-cast"
 #include <sys/types.h>
 #include <string.h>
 

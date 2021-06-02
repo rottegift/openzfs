@@ -29,7 +29,8 @@
 
 #ifndef _SPL_ATOMIC_H
 #define	_SPL_ATOMIC_H
-
+#pragma GCC diagnostic push
+#pragma GCC diagnostic warning "-Wsign-conversion"
 #include <sys/types.h>
 #include <string.h>
 #include <libkern/OSAtomic.h>
@@ -284,5 +285,5 @@ membar_producer(void)
 #ifdef	__cplusplus
 }
 #endif
-
+#pragma GCC diagnostic pop
 #endif  /* _SPL_ATOMIC_H */

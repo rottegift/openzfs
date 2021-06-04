@@ -885,7 +885,9 @@ gcm_impl_init(void)
 	if (gcm_avx_will_work()) {
 #ifdef HAVE_MOVBE
 		if (zfs_movbe_available() == B_TRUE) {
-			atomic_swap_32(&gcm_avx_can_use_movbe, B_TRUE);
+			atomic_swap_32(
+			    (volatile uint32_t *)&gcm_avx_can_use_movbe,
+			    B_TRUE);
 		}
 #endif
 		if (GCM_IMPL_READ(user_sel_impl) == IMPL_FASTEST) {
@@ -1124,7 +1126,7 @@ static inline void
 gcm_set_avx(boolean_t val)
 {
 	if (gcm_avx_will_work() == B_TRUE) {
-		atomic_swap_32(&gcm_use_avx, val);
+		atomic_swap_32((volatile uint32_t *)&gcm_use_avx, val);
 	}
 }
 

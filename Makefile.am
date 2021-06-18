@@ -120,7 +120,6 @@ cstyle:
 		! -name 'zfs_config.*' ! -name '*.mod.c' \
 		! -name 'opt_global.h' ! -name '*_if*.h' \
 		! -path './module/zstd/lib/*' \
-		! -name 'kextsymboltool.c' \
 		-exec ${top_srcdir}/scripts/cstyle.pl -cpP {} \+
 
 filter_executable = -exec test -x '{}' \; -print

@@ -1342,6 +1342,9 @@ zfs_vnop_lookup(struct vnop_lookup_args *ap)
 	error = zfs_lookup(VTOZ(ap->a_dvp), filename, &zp, /* flags */ 0, cr,
 	    &direntflags, &cn2);
 
+	dprintf("%s:%d: post-zfs_lookup filename is '%s'.\n",
+	    __FILE__, __LINE__, filename);
+
 	/* flags can be LOOKUP_XATTR | FIGNORECASE */
 	if (error == 0)
 		*ap->a_vpp = ZTOV(zp);

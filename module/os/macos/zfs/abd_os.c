@@ -32,6 +32,7 @@
 #include <sys/zio.h>
 #include <sys/zfs_context.h>
 #include <sys/zfs_znode.h>
+#include <sys/kmem_impl.h>
 
 typedef struct abd_stats {
 	kstat_named_t abdstat_struct_size;
@@ -77,11 +78,22 @@ static abd_stats_t abd_stats = {
  * will cause the machine to panic if you change it and try to access the data
  * within a scattered ABD.
  */
-size_t zfs_abd_chunk_size = 4096;
+const size_t zfs_abd_chunk_size = PAGE_SIZE;
 
 kmem_cache_t *abd_chunk_cache;
 static kstat_t *abd_ksp;
 
+/*
+ * Sub-PAGE_SIZE allocations are segregated into kmem caches.  This may be
+ * inefficient or counterproductive if in future the following conditions are
+ * not met.
+ */
+_Static_assert(SPA_MINBLOCKSHIFT == 9, "unexpected SPA_MINSBLOCKSHIFT != 9");
+_Static_assert(ISP2(PAGE_SIZE), "PAGE_SIZE unexpectedly non power of 2");
+_Static_assert(PAGE_SIZE >= 4096, "PAGE_SIZE unexpectedly smaller than 4096");
+_Static_assert(PAGE_SIZE <= 16384, "PAGE_SIZE unexpectedly larger than 16384");
+
+kmem_cache_t *abd_subpage_cache[PAGE_SIZE >> SPA_MINBLOCKSHIFT] = { NULL };
 
 /*
  * We use a scattered SPA_MAXBLOCKSIZE sized ABD whose chunks are
@@ -260,9 +272,16 @@ abd_free_zero_scatter(void)
 void
 abd_init(void)
 {
+#ifdef DEBUG
+	/* This uses a lot of memory, so should be KMC_NOTOUCH when working */
+	const int cflags = KMF_BUFTAG | KMF_LITE;
+#else
+	const int cflags = KMC_NOTOUCH;
+#endif
+
 	abd_chunk_cache = kmem_cache_create("abd_chunk", zfs_abd_chunk_size,
-	    MIN(PAGE_SIZE, 4096),
-	    NULL, NULL, NULL, NULL, abd_arena, KMC_NOTOUCH);
+	    PAGE_SIZE,
+	    NULL, NULL, NULL, NULL, abd_arena, cflags);
 
 	abd_ksp = kstat_create("zfs", 0, "abdstats", "misc", KSTAT_TYPE_NAMED,
 	    sizeof (abd_stats) / sizeof (kstat_named_t), KSTAT_FLAG_VIRTUAL);
@@ -272,11 +291,42 @@ abd_init(void)
 	}
 
 	abd_alloc_zero_scatter();
+
+	/*
+	 * Check at compile time that SPA_MINBLOCKSIZE is 512, because we want
+	 * to build sub-page-size linear ABD kmem caches at multiples of
+	 * SPA_MINBLOCKSIZE.  If SPA_MINBLOCKSIZE ever changes, a different
+	 * layout should be calculated at runtime.
+	 *
+	 * See also the assertions above the definition of abd_subpbage_cache.
+	 */
+
+	_Static_assert(SPA_MINBLOCKSIZE == 512, "unexpected SPA_MINBLOCKSIZE != 512");
+
+	const int step_size = SPA_MINBLOCKSIZE;
+	for (int bytes = step_size; bytes < PAGE_SIZE; bytes += step_size) {
+		char name[36];
+		(void) snprintf(name, sizeof(name),
+		    "abd_subpage_%lu", (ulong_t)bytes);
+		const int index = (bytes >> SPA_MINBLOCKSHIFT) - 1;
+		VERIFY3U(index, >=, 0);
+		VERIFY3U(index, <, PAGE_SIZE >> SPA_MINBLOCKSHIFT);
+		abd_subpage_cache[index] =
+		    kmem_cache_create(name, bytes, 512,
+			NULL, NULL, NULL, NULL, abd_subpage_arena, cflags);
+		VERIFY3P(abd_subpage_cache[index], !=, NULL);
+	}
 }
 
 void
 abd_fini(void)
 {
+	const int step_size = SPA_MINBLOCKSIZE;
+	for (int bytes = step_size; bytes < PAGE_SIZE; bytes += step_size) {
+		const int index = (bytes >> SPA_MINBLOCKSHIFT) - 1;
+		kmem_cache_destroy(abd_subpage_cache[index]);
+	}
+
 	abd_free_zero_scatter();
 
 	if (abd_ksp != NULL) {

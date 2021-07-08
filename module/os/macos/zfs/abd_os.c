@@ -174,7 +174,7 @@ abd_verify_scatter(abd_t *abd)
 	    zfs_abd_chunk_size);
 	VERIFY3U(ABD_SCATTER(abd).abd_offset, <,
 	    ABD_SCATTER(abd).abd_chunk_size);
-	VERIFY3U(ABD_SCATTER(abd).abd_offset, >=,
+	VERIFY3U(ABD_SCATTER(abd).abd_chunk_size, >=,
 	    SPA_MINBLOCKSIZE);
 
 	size_t n = abd_scatter_chunkcnt(abd);

@@ -230,8 +230,8 @@ void
 abd_free_chunks(abd_t *abd)
 {
 	if (ABD_SCATTER(abd).abd_chunk_size < PAGE_SIZE) {
-		const int i = ABD_SCATTER(abd).abd_chunk_size
-		    >> SPA_MINBLOCKSHIFT;
+		const int i = (ABD_SCATTER(abd).abd_chunk_size
+		    >> SPA_MINBLOCKSHIFT) - 1;
 
 		kmem_cache_free(abd_subpage_cache[i],
 		    ABD_SCATTER(abd).abd_chunks[0]);

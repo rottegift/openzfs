@@ -200,7 +200,7 @@ abd_subpage_cache_index(size_t size)
 static inline int
 abd_subpage_enclosing_size(int i, uint_t s)
 {
-	return (SPA_MINBLOCKSIZE * i);
+	return (SPA_MINBLOCKSIZE * (i + 1));
 }
 
 void
@@ -211,6 +211,7 @@ abd_alloc_chunks(abd_t *abd, size_t size)
 		const int i = abd_subpage_cache_index(size);
 		const uint_t s = abd_subpage_enclosing_size(i, size);
 		VERIFY3U(s, >=, size);
+		VERIFY3U(s, <, zfs_abd_chunk_size);
 		void *c = kmem_cache_alloc(abd_subpage_cache[i], KM_SLEEP);
 		ABD_SCATTER(abd).abd_chunks[0] = c;
 		ABD_SCATTER(abd).abd_chunk_size = s;

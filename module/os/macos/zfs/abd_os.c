@@ -194,12 +194,7 @@ abd_verify_scatter(abd_t *abd)
 static inline int
 abd_subpage_cache_index(size_t size)
 {
-	const int i = size >> SPA_MINBLOCKSHIFT;
-
-	if (ISP2(size))
-		return (i - 1);
-	else
-		return (i);
+	return (size >> SPA_MINBLOCKSHIFT);
 }
 
 static inline int

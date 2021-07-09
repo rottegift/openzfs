@@ -205,16 +205,14 @@ abd_subpage_cache_index(size_t size)
 static inline int
 abd_subpage_enclosing_size(int i, uint_t s)
 {
-	if (ISP2(s))
-		return (s);
-	return (1 << (i + SPA_MINBLOCKSHIFT));
+	return (SPA_MINBLOCKSIZE * i);
 }
 
 void
 abd_alloc_chunks(abd_t *abd, size_t size)
 {
 	VERIFY3U(size, >, 0);
-	if (size < PAGE_SIZE) {
+	if (size < zfs_abd_chunk_size) {
 		const int i = abd_subpage_cache_index(size);
 		const uint_t s = abd_subpage_enclosing_size(i, size);
 		VERIFY3U(s, >=, size);
@@ -237,9 +235,9 @@ abd_free_chunks(abd_t *abd)
 {
 	const uint_t abd_cs = ABD_SCATTER(abd).abd_chunk_size;
 
-	if (abd_cs < PAGE_SIZE) {
+	if (abd_cs < zfs_abd_chunk_size) {
 		VERIFY(ISP2(abd_cs));
-		VERIFY3U(abd->abd_size, <, PAGE_SIZE);
+		VERIFY3U(abd->abd_size, <, zfs_abd_chunk_size);
 
 		const int idx = abd_subpage_cache_index(abd_cs);
 
@@ -384,6 +382,7 @@ abd_fini(void)
 	for (int bytes = step_size; bytes < PAGE_SIZE; bytes += step_size) {
 		const int index = (bytes >> SPA_MINBLOCKSHIFT) - 1;
 		kmem_cache_destroy(abd_subpage_cache[index]);
+		abd_subpage_cache[index] = NULL;
 	}
 
 	abd_free_zero_scatter();

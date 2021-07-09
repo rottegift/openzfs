@@ -192,13 +192,18 @@ abd_verify_scatter(abd_t *abd)
 }
 
 static inline int
-abd_subpage_cache_index(size_t size)
+abd_subpage_cache_index(const size_t size)
 {
-	return (size >> SPA_MINBLOCKSHIFT);
+	const int idx = size >> SPA_MINBLOCKSHIFT;
+
+	if ((size % SPA_MINBLOCKSIZE) == 0)
+		return (idx - 1);
+	else
+		return (idx);
 }
 
-static inline int
-abd_subpage_enclosing_size(int i, uint_t s)
+static inline uint_t
+abd_subpage_enclosing_size(const int i)
 {
 	return (SPA_MINBLOCKSIZE * (i + 1));
 }
@@ -209,7 +214,7 @@ abd_alloc_chunks(abd_t *abd, size_t size)
 	VERIFY3U(size, >, 0);
 	if (size < zfs_abd_chunk_size) {
 		const int i = abd_subpage_cache_index(size);
-		const uint_t s = abd_subpage_enclosing_size(i, size);
+		const uint_t s = abd_subpage_enclosing_size(i);
 		VERIFY3U(s, >=, size);
 		VERIFY3U(s, <, zfs_abd_chunk_size);
 		void *c = kmem_cache_alloc(abd_subpage_cache[i], KM_SLEEP);

@@ -194,7 +194,12 @@ abd_verify_scatter(abd_t *abd)
 static inline int
 abd_subpage_cache_index(size_t size)
 {
-	return (size >> SPA_MINBLOCKSHIFT);
+	const int i = size >> SPA_MINBLOCKSHIFT;
+
+	if (ISP2(size))
+		return (i - 1);
+	else
+		return (i);
 }
 
 static inline int
@@ -212,6 +217,7 @@ abd_alloc_chunks(abd_t *abd, size_t size)
 	if (size < PAGE_SIZE) {
 		const int i = abd_subpage_cache_index(size);
 		const uint_t s = abd_subpage_enclosing_size(i, size);
+		VERIFY3U(s, >=, size);
 		void *c = kmem_cache_alloc(abd_subpage_cache[i], KM_SLEEP);
 		ABD_SCATTER(abd).abd_chunks[0] = c;
 		ABD_SCATTER(abd).abd_chunk_size = s;
@@ -229,11 +235,15 @@ abd_alloc_chunks(abd_t *abd, size_t size)
 void
 abd_free_chunks(abd_t *abd)
 {
-	if (ABD_SCATTER(abd).abd_chunk_size < PAGE_SIZE) {
-		const int i = (ABD_SCATTER(abd).abd_chunk_size
-		    >> SPA_MINBLOCKSHIFT) - 1;
+	const uint_t abd_cs = ABD_SCATTER(abd).abd_chunk_size;
 
-		kmem_cache_free(abd_subpage_cache[i],
+	if (abd_cs < PAGE_SIZE) {
+		VERIFY(ISP2(abd_cs));
+		VERIFY3U(abd->abd_size, <, PAGE_SIZE);
+
+		const int idx = abd_subpage_cache_index(abd_cs);
+
+		kmem_cache_free(abd_subpage_cache[idx],
 		    ABD_SCATTER(abd).abd_chunks[0]);
 	} else {
 		const size_t n = abd_scatter_chunkcnt(abd);

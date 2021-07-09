@@ -212,7 +212,7 @@ void
 abd_alloc_chunks(abd_t *abd, size_t size)
 {
 	VERIFY3U(size, >, 0);
-	if (size < zfs_abd_chunk_size) {
+	if (size <= (zfs_abd_chunk_size - SPA_MINBLOCKSIZE)) {
 		const int i = abd_subpage_cache_index(size);
 		const uint_t s = abd_subpage_enclosing_size(i);
 		VERIFY3U(s, >=, size);

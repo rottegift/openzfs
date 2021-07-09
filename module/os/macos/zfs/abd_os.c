@@ -238,6 +238,7 @@ abd_free_chunks(abd_t *abd)
 
 	if (abd_cs < zfs_abd_chunk_size) {
 		VERIFY3U(abd->abd_size, <, zfs_abd_chunk_size);
+		VERIFY0(abd_cs % SPA_MINBLOCKSIZE);
 
 		const int idx = abd_subpage_cache_index(abd_cs);
 

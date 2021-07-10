@@ -443,8 +443,7 @@ abd_get_offset_scatter(abd_t *abd, abd_t *sabd, size_t off, size_t size)
 	const uint_t sabd_chunksz = ABD_SCATTER(sabd).abd_chunk_size;
 
 	if (sabd_chunksz != zfs_abd_chunk_size) {
-		VERIFY3U(sabd->abd_size + off + size, <=,
-		    sabd_chunksz);
+		VERIFY3U(off + size, <=, sabd_chunksz);
 	}
 
 	const size_t new_offset = ABD_SCATTER(sabd).abd_offset + off;

@@ -489,7 +489,7 @@ abd_get_offset_scatter(abd_t *abd, abd_t *sabd, size_t off, size_t size)
 	ABD_SCATTER(abd).abd_offset = new_offset % sabd_chunksz;
 
 	VERIFY3U(ABD_SCATTER(abd).abd_offset, <, sabd_chunksz);
-	VERIFY3U(ABD_SCATTER(abd).abd_offset + size, <, sabd_chunksz);
+	VERIFY3U(ABD_SCATTER(abd).abd_offset + size, <=, sabd_chunksz);
 
 	ABD_SCATTER(abd).abd_chunk_size = sabd_chunksz;
 

@@ -434,6 +434,12 @@ abd_alloc_for_io(size_t size, boolean_t is_metadata)
  * fit within) the source ABD.
  */
 
+
+// bust into two functions, one for where sabd_chunk_size is small
+// and then the legacy one.
+
+// use const numchunks = (subpage) ? 1 : (calculate)
+
 abd_t *
 abd_get_offset_scatter(abd_t *abd, abd_t *sabd, size_t off, size_t size)
 {
@@ -442,10 +448,16 @@ abd_get_offset_scatter(abd_t *abd, abd_t *sabd, size_t off, size_t size)
 
 	const uint_t sabd_chunksz = ABD_SCATTER(sabd).abd_chunk_size;
 
+//// chunkcnt_for_bytes is zfs_abd_chunk_size based
+//// so we should use the value 1 if sabd_chunksz < that
+// move this if down below new_offset and check
+// that new_offset is in chunk, and new_offset + size
+// is also in chunk
 	if (sabd_chunksz != zfs_abd_chunk_size) {
 		VERIFY3U(off + size, <=, sabd_chunksz);
 	}
 
+// test that new_offset is in range, and new_offset + size is in range
 	const size_t new_offset = ABD_SCATTER(sabd).abd_offset + off;
 
 	/*
@@ -459,10 +471,11 @@ abd_get_offset_scatter(abd_t *abd, abd_t *sabd, size_t off, size_t size)
 	VERIFY3U(chunkcnt, ==, abd_chunkcnt_for_bytes(
 	    (new_offset % zfs_abd_chunk_size) + size));
 
+// we panicked here, 1536 == 4096, from vdev_raidz_map_alloc
 	if (chunkcnt > 1) {
 		VERIFY3U(sabd_chunksz, ==, zfs_abd_chunk_size);
 	}
-
+// hoist this before the if
 	VERIFY3U(chunkcnt, <=, abd_scatter_chunkcnt(sabd));
 
 	/*

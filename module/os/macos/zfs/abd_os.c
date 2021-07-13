@@ -327,7 +327,8 @@ abd_init(void)
 {
 #ifdef DEBUG
 	/* This uses a lot of memory, so should be KMC_NOTOUCH when working */
-	const int cflags = KMF_BUFTAG | KMF_LITE;
+	// const int cflags = KMF_BUFTAG | KMF_LITE;
+	const int cflags = KMC_NOTOUCH;
 #else
 	const int cflags = KMC_NOTOUCH;
 #endif

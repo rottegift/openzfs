@@ -325,7 +325,15 @@ void
 abd_init(void)
 {
 #ifdef DEBUG
-	/* This uses a lot of memory, so should be KMC_NOTOUCH when working */
+	/*
+	 * KMF_BUFTAG | KMF_LITE on the abd kmem_caches causes them to waste
+	 * up to 50% of their memory for redzone.  Even in DEBUG builds this
+	 * therefore should be KMC_NOTOUCH unless there are concerns about
+	 * overruns, UAFs, etc involving abd chunks or subpage chunks.
+	 *
+	 * Additionally these KMF_
+	 * flags require the definitions from <sys/kmem_impl.h>
+	 */
 	// const int cflags = KMF_BUFTAG | KMF_LITE;
 	const int cflags = KMC_NOTOUCH;
 #else
@@ -434,12 +442,6 @@ abd_alloc_for_io(size_t size, boolean_t is_metadata)
  * fit within) the source ABD.
  */
 
-
-// bust into two functions, one for where sabd_chunk_size is small
-// and then the legacy one.
-
-// use const numchunks = (subpage) ? 1 : (calculate)
-
 abd_t *
 abd_get_offset_scatter(abd_t *abd, abd_t *sabd, size_t off, size_t size)
 {
@@ -448,21 +450,15 @@ abd_get_offset_scatter(abd_t *abd, abd_t *sabd, size_t off, size_t size)
 
 	const uint_t sabd_chunksz = ABD_SCATTER(sabd).abd_chunk_size;
 
-// // chunkcnt_for_bytes is zfs_abd_chunk_size based
-// // so we should use the value 1 if sabd_chunksz < that
-// move this if down below new_offset and check
-// that new_offset is in chunk, and new_offset + size
-// is also in chunk
-
-// test that new_offset is in range, and new_offset + size is in range
 	const size_t new_offset = ABD_SCATTER(sabd).abd_offset + off;
 
+	/* subpage ABD range checking */
 	if (sabd_chunksz != zfs_abd_chunk_size) {
-		// off+size must fit in 1 chunk
+		/*  off+size must fit in 1 chunk */
 		VERIFY3U(off + size, <=, sabd_chunksz);
-		// new_offset must be in bounds of 1 chunk
+		/* new_offset must be in bounds of 1 chunk */
 		VERIFY3U(new_offset, <=, sabd_chunksz);
-		// new_offset + size must be in bounds of 1 chunk
+		/* new_offset + size must be in bounds of 1 chunk */
 		VERIFY3U(new_offset + size, <=, sabd_chunksz);
 	}
 
@@ -475,18 +471,16 @@ abd_get_offset_scatter(abd_t *abd, abd_t *sabd, size_t off, size_t size)
 	    ? 1
 	    : abd_chunkcnt_for_bytes((new_offset % sabd_chunksz) + size);
 
-	// check that we have no more than the chunks we gate
-	// based on source size
+	/* sanity checks on chunkcnt */
 	VERIFY3U(chunkcnt, <=, abd_scatter_chunkcnt(sabd));
-	// make sure we haven't somehow arrived at zero chunks
 	VERIFY3U(chunkcnt, >, 0);
 
+	/* non-subpage sanity checking */
 	if (chunkcnt > 1) {
-		// compare with legacy calculation of chunkcnt
+		/* compare with legacy calculation of chunkcnt */
 		VERIFY3U(chunkcnt, ==, abd_chunkcnt_for_bytes(
 		    (new_offset % zfs_abd_chunk_size) + size));
-		// EITHER subpage chunk (singular) or std chunks
-		// (this was a source of panic earlier)
+		/* EITHER subpage chunk (singular) or std chunks */
 		VERIFY3U(sabd_chunksz, ==, zfs_abd_chunk_size);
 	}
 
@@ -511,6 +505,7 @@ abd_get_offset_scatter(abd_t *abd, abd_t *sabd, size_t off, size_t size)
 	 * this case. Therefore, we don't ever use ABD_FLAG_META here.
 	 */
 
+	/* update offset, and sanity check it */
 	ABD_SCATTER(abd).abd_offset = new_offset % sabd_chunksz;
 
 	VERIFY3U(ABD_SCATTER(abd).abd_offset, <, sabd_chunksz);

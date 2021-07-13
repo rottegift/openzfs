@@ -448,35 +448,47 @@ abd_get_offset_scatter(abd_t *abd, abd_t *sabd, size_t off, size_t size)
 
 	const uint_t sabd_chunksz = ABD_SCATTER(sabd).abd_chunk_size;
 
-//// chunkcnt_for_bytes is zfs_abd_chunk_size based
-//// so we should use the value 1 if sabd_chunksz < that
+// // chunkcnt_for_bytes is zfs_abd_chunk_size based
+// // so we should use the value 1 if sabd_chunksz < that
 // move this if down below new_offset and check
 // that new_offset is in chunk, and new_offset + size
 // is also in chunk
-	if (sabd_chunksz != zfs_abd_chunk_size) {
-		VERIFY3U(off + size, <=, sabd_chunksz);
-	}
 
 // test that new_offset is in range, and new_offset + size is in range
 	const size_t new_offset = ABD_SCATTER(sabd).abd_offset + off;
+
+	if (sabd_chunksz != zfs_abd_chunk_size) {
+		// off+size must fit in 1 chunk
+		VERIFY3U(off + size, <=, sabd_chunksz);
+		// new_offset must be in bounds of 1 chunk
+		VERIFY3U(new_offset, <=, sabd_chunksz);
+		// new_offset + size must be in bounds of 1 chunk
+		VERIFY3U(new_offset + size, <=, sabd_chunksz);
+	}
 
 	/*
 	 * chunkcnt is abd_chunkcnt_for_bytes(size), which rounds
 	 * up to the nearest chunk, but we also must take care
 	 * of the offset *in the leading chunk*
 	 */
-	const size_t chunkcnt = abd_chunkcnt_for_bytes(
-	    (new_offset % sabd_chunksz) + size);
+	const size_t chunkcnt = (sabd_chunksz != zfs_abd_chunk_size)
+	    ? 1
+	    : abd_chunkcnt_for_bytes((new_offset % sabd_chunksz) + size);
 
-	VERIFY3U(chunkcnt, ==, abd_chunkcnt_for_bytes(
-	    (new_offset % zfs_abd_chunk_size) + size));
+	// check that we have no more than the chunks we gate
+	// based on source size
+	VERIFY3U(chunkcnt, <=, abd_scatter_chunkcnt(sabd));
+	// make sure we haven't somehow arrived at zero chunks
+	VERIFY3U(chunkcnt, >, 0);
 
-// we panicked here, 1536 == 4096, from vdev_raidz_map_alloc
 	if (chunkcnt > 1) {
+		// compare with legacy calculation of chunkcnt
+		VERIFY3U(chunkcnt, ==, abd_chunkcnt_for_bytes(
+		    (new_offset % zfs_abd_chunk_size) + size));
+		// EITHER subpage chunk (singular) or std chunks
+		// (this was a source of panic earlier)
 		VERIFY3U(sabd_chunksz, ==, zfs_abd_chunk_size);
 	}
-// hoist this before the if
-	VERIFY3U(chunkcnt, <=, abd_scatter_chunkcnt(sabd));
 
 	/*
 	 * If an abd struct is provided, it is only the minimum size (and
@@ -502,7 +514,8 @@ abd_get_offset_scatter(abd_t *abd, abd_t *sabd, size_t off, size_t size)
 	ABD_SCATTER(abd).abd_offset = new_offset % sabd_chunksz;
 
 	VERIFY3U(ABD_SCATTER(abd).abd_offset, <, sabd_chunksz);
-	VERIFY3U(ABD_SCATTER(abd).abd_offset + size, <=, sabd_chunksz);
+	VERIFY3U(ABD_SCATTER(abd).abd_offset + size, <=,
+	    chunkcnt * sabd_chunksz);
 
 	ABD_SCATTER(abd).abd_chunk_size = sabd_chunksz;
 

@@ -274,7 +274,7 @@ segkmem_abd_init()
 	VERIFY3P(abd_arena, !=, NULL);
 
 	/*
-	 * We also have an sub-arena for sub-page allocations, so as to avoid
+	 * We also have a sub-arena for sub-page allocations, so as to avoid
 	 * memory waste, while segregating ABDs for visibility and
 	 * fragmentation control.
 	 *

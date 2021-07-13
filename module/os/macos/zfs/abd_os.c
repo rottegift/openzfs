@@ -33,7 +33,6 @@
 #include <sys/zio.h>
 #include <sys/zfs_context.h>
 #include <sys/zfs_znode.h>
-#include <sys/kmem_impl.h>
 
 typedef struct abd_stats {
 	kstat_named_t abdstat_struct_size;

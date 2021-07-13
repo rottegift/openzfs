@@ -519,7 +519,7 @@ abd_get_offset_scatter(abd_t *abd, abd_t *sabd, size_t off, size_t size)
 
 	ABD_SCATTER(abd).abd_chunk_size = sabd_chunksz;
 
-	if (sabd_chunksz > 1) {
+	if (chunkcnt > 1) {
 		VERIFY3U(ABD_SCATTER(sabd).abd_chunk_size, ==,
 		    zfs_abd_chunk_size);
 	}
